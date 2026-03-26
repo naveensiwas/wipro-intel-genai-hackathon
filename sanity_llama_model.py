@@ -49,8 +49,9 @@ try:
         logger,
         f"Inference completed successfully in {elapsed_seconds:.2f} seconds. Response length: {len(content)} characters."
     )
-    logger.info("LLM Prompt: %s", test_prompt)
-    logger.info(f"📝 LLM Response: {content}")
+
+    logger.debug("LLM Prompt: %s", test_prompt)
+    log_success(logger, f"📝 LLM Response: {content}")
 except Exception as exc:
     log_error(logger, f"Inference failed on prompt: '{test_prompt}'", exc)
     raise SystemExit(1)
