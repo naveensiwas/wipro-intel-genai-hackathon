@@ -11,8 +11,10 @@ class AppConfig:
     # Set LLM_MODE=sagemaker  → uses AWS SageMaker endpoint via boto3 + SSO
     # Set LLM_MODE=llama      → uses remote Llama HTTP endpoint directly
 
-    # llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # For local setup
-    llm_mode: str = os.getenv("LLM_MODE", "llama")   # For JUMP machine
+    # For local testing, you can set this to "llama" to bypass AWS SageMaker and use a direct HTTP endpoint instead.
+    # This is useful for development without incurring AWS costs or needing AWS credentials.
+    llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # For local testing.
+    # llm_mode: str = os.getenv("LLM_MODE", "llama")   # For JUMP machine.
 
     # ── AWS SageMaker settings (used when llm_mode=sagemaker) ─────────────────
     aws_profile:          str   = os.getenv("AWS_PROFILE",       "my-sso")
@@ -24,7 +26,7 @@ class AppConfig:
     llm_api_key:          str   = os.getenv("LLM_API_KEY",       "")
 
     # ── Shared LLM generation settings ────────────────────────────────────────
-    llm_model:            str   = os.getenv("LLM_MODEL",                "llama-3-2-3b-tgi-cpu-endpoint")
+    llm_model:            str   = os.getenv("LLM_MODEL",                "meta-llama/Meta-Llama-3.1-8B-Instruct")
     llm_timeout:          int   = int(os.getenv("LLM_TIMEOUT",          "60"))
     temperature:          float = float(os.getenv("LLM_TEMPERATURE",    "0.3"))
     max_tokens:           int   = int(os.getenv("LLM_MAX_TOKENS",       "512"))
