@@ -13,8 +13,8 @@ class AppConfig:
 
     # For local testing, you can set this to "llama" to bypass AWS SageMaker and use a direct HTTP endpoint instead.
     # This is useful for development without incurring AWS costs or needing AWS credentials.
-    llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # For local testing.
-    # llm_mode: str = os.getenv("LLM_MODE", "llama")   # For JUMP machine.
+    # llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # For local testing.
+    llm_mode: str = os.getenv("LLM_MODE", "llama")   # For JUMP machine.
 
     # ── AWS SageMaker settings (used when llm_mode=sagemaker) ─────────────────
     aws_profile:          str   = os.getenv("AWS_PROFILE",       "my-sso")
