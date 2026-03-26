@@ -10,7 +10,9 @@ class AppConfig:
     # ── LLM mode switch ───────────────────────────────────────────────────────
     # Set LLM_MODE=sagemaker  → uses AWS SageMaker endpoint via boto3 + SSO
     # Set LLM_MODE=llama      → uses remote Llama HTTP endpoint directly
-    llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # "sagemaker" | "llama"
+
+    # llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # For local setup
+    llm_mode: str = os.getenv("LLM_MODE", "llama")   # For JUMP machine
 
     # ── AWS SageMaker settings (used when llm_mode=sagemaker) ─────────────────
     aws_profile:          str   = os.getenv("AWS_PROFILE",       "my-sso")
