@@ -24,6 +24,7 @@ class EndpointLLM(LLM):
 
     @property
     def _llm_type(self) -> str:
+        """Return a string identifier for this LLM type."""
         return f"endpoint_{self.llm_mode}"
 
     def _call(
@@ -33,6 +34,7 @@ class EndpointLLM(LLM):
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> str:
+        """Invoke the underlying client with the prompt and return the response text."""
         response = self.client.invoke(prompt)
         text = response.content if hasattr(response, "content") else str(response)
 
@@ -46,6 +48,7 @@ class EndpointLLM(LLM):
 
     @property
     def _identifying_params(self) -> dict[str, Any]:
+        """Return identifying parameters for this LLM (used in caching, logging, etc.)."""
         return {
             "llm_mode": self.llm_mode,
             "llm_name": self.llm_name,
