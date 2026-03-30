@@ -11,6 +11,7 @@ logger = get_logger(__name__)
 
 
 def _load_json(path: str) -> list:
+    """Helper function to load a JSON file and return its content."""
     logger.debug(f"Reading JSON file: {path}")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
