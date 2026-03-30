@@ -1,27 +1,51 @@
 """
-Embedding model setup using sentence-transformers (CPU-only).
-Uses HuggingFaceEmbeddings for compatibility with LangChain + FAISS.
+RAG chain assembly.
+Wires the retriever and LLM into a RetrievalQA chain with a custom healthcare prompt.
 """
-from functools import lru_cache
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.chains import RetrievalQA
+from langchain_community.vectorstores import FAISS
+from llm.prompt_templates import RAG_PROMPT
 from config import cfg
 from logger_config import get_logger, log_success, log_error
 
 logger = get_logger(__name__)
 
 
-@lru_cache(maxsize=1)
-def get_embeddings() -> HuggingFaceEmbeddings:
-    """Return a cached HuggingFaceEmbeddings instance."""
-    logger.info(f"Loading embedding model: {cfg.embedding_model}")
+def build_rag_chain(llm, vector_store: FAISS) -> RetrievalQA:
+    """Build and return a RetrievalQA chain."""
+    logger.info(f"Building RAG chain (retriever_k={cfg.retriever_k}, chain_type='stuff')")
     try:
-        embeddings = HuggingFaceEmbeddings(
-            model_name=cfg.embedding_model,
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
+        retriever = vector_store.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": cfg.retriever_k},
         )
-        log_success(logger, f"Embedding model loaded: {cfg.embedding_model}")
-        return embeddings
+        chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True,
+            chain_type_kwargs={"prompt": RAG_PROMPT},
+        )
+        log_success(logger, "RAG chain assembled")
+        return chain
     except Exception as exc:
-        log_error(logger, f"Failed to load embedding model '{cfg.embedding_model}'", exc)
+        log_error(logger, "Failed to build RAG chain", exc)
         raise
+
+
+def retrieve_sources(vector_store: FAISS, query: str) -> list[dict]:
+    """Return the top-k retrieved source chunks for a query (for UI display)."""
+    logger.debug(f"Retrieving top-{cfg.retriever_k} sources for query: '{query[:80]}...'")
+    retriever = vector_store.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": cfg.retriever_k},
+    )
+    docs = retriever.invoke(query)
+    results = []
+    for doc in docs:
+        results.append({
+            "content":  doc.page_content[:300] + "..." if len(doc.page_content) > 300 else doc.page_content,
+            "metadata": doc.metadata,
+        })
+    logger.debug(f"Retrieved {len(results)} source chunks")
+    return results
