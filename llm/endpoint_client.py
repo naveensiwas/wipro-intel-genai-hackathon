@@ -29,8 +29,57 @@ _llama_logger = get_logger("llm.LlamaClient")
 
 @dataclass
 class EndpointResponse:
+    """EndpointResponse is a small data container class (a @dataclass) used as the standard return type from
+    both endpoint clients.
+    """
     content: str
     raw: Optional[Any] = None
+
+
+# ── Shared helpers ────────────────────────────────────────────────────────────
+
+def _coerce_prompt(prompt: Any) -> str:
+    """Coerce prompt-like inputs into a plain string."""
+    if isinstance(prompt, str):
+        return prompt
+    if hasattr(prompt, "to_string"):
+        return prompt.to_string()
+    return str(prompt)
+
+
+def _extract_content(data: Any, logger_obj, client_name: str) -> str:
+    """Extract generated text from common OpenAI-compatible and TGI response shapes."""
+
+    # OpenAI-compatible response: dict with choices -> message -> content
+    if isinstance(data, dict):
+        choices = data.get("choices") or []
+        if choices:
+            message = choices[0].get("message") or {}
+            content = message.get("content")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                return "".join(
+                    i.get("text", "") if isinstance(i, dict) else str(i)
+                    for i in content
+                )
+
+        # Some endpoints return {"generated_text": "..."}
+        text = data.get("generated_text")
+        if isinstance(text, str):
+            return text
+
+    # TGI-style response: list[0].generated_text
+    if isinstance(data, list) and data:
+        item = data[0]
+        if isinstance(item, dict):
+            text = item.get("generated_text")
+            if isinstance(text, str):
+                return text
+
+    err = f"Could not extract text from response: {data}"
+    log_error(logger_obj, err)
+    raise ValueError(f"[{client_name}] {err}")
 
 
 # ── SageMaker client (llm_mode = "sagemaker") ─────────────────────────────────
@@ -77,7 +126,9 @@ class SageMakerEndpointClient:
             ) from exc
 
     def invoke(self, prompt: Any) -> EndpointResponse:
-        text_prompt = self._coerce_prompt(prompt)
+        """Invoke the SageMaker endpoint with the given prompt and return the response content."""
+        text_prompt = _coerce_prompt(prompt)
+        _sm_logger.debug(f"[TRACE] SageMakerEndpointClient.invoke() — sending to endpoint '{self.endpoint_name}'")
         payload = {
             "inputs": text_prompt,
             "parameters": {
@@ -113,44 +164,9 @@ class SageMakerEndpointClient:
         if self.verbose:
             _sm_logger.debug(f"Raw response: {raw_body}")
 
-        content = self._extract_content(data)
+        content = _extract_content(data, _sm_logger, "SageMakerClient")
         _sm_logger.info(f"Response received ({len(content)} chars)")
         return EndpointResponse(content=content, raw=data)
-
-    # ── helpers ───────────────────────────────────────────────────────────────
-
-    def _coerce_prompt(self, prompt: Any) -> str:
-        if isinstance(prompt, str):
-            return prompt
-        if hasattr(prompt, "to_string"):
-            return prompt.to_string()
-        return str(prompt)
-
-    def _extract_content(self, data: Any) -> str:
-        if isinstance(data, list) and data:
-            item = data[0]
-            if isinstance(item, dict):
-                text = item.get("generated_text")
-                if isinstance(text, str):
-                    return text
-        if isinstance(data, dict):
-            text = data.get("generated_text")
-            if isinstance(text, str):
-                return text
-            choices = data.get("choices") or []
-            if choices:
-                message = choices[0].get("message") or {}
-                content = message.get("content")
-                if isinstance(content, str):
-                    return content
-                if isinstance(content, list):
-                    return "".join(
-                        i.get("text", "") if isinstance(i, dict) else str(i)
-                        for i in content
-                    )
-        err = f"Could not extract text from response: {data}"
-        log_error(_sm_logger, err)
-        raise ValueError(f"[SageMakerClient] {err}")
 
 
 # ── Llama HTTP client (llm_mode = "llama") ────────────────────────────────────
@@ -188,7 +204,9 @@ class LlamaEndpointClient:
         )
 
     def invoke(self, prompt: Any) -> EndpointResponse:
-        text_prompt = self._coerce_prompt(prompt)
+        """Invoke the Llama HTTP endpoint with the given prompt and return the response content."""
+        text_prompt = _coerce_prompt(prompt)
+        _llama_logger.debug(f"[TRACE] LlamaEndpointClient.invoke() — sending to endpoint '{self.base_url}'")
         payload = {
             "model":       self.model,
             "messages":    [{"role": "user", "content": text_prompt}],
@@ -225,46 +243,12 @@ class LlamaEndpointClient:
         if self.verbose:
             _llama_logger.debug(f"Raw response: {data}")
 
-        content = self._extract_content(data)
+        content = _extract_content(data, _llama_logger, "LlamaClient")
         _llama_logger.info(f"Response received ({len(content)} chars)")
         return EndpointResponse(content=content, raw=data)
 
-    # ── helpers ───────────────────────────────────────────────────────────────
 
-    def _coerce_prompt(self, prompt: Any) -> str:
-        if isinstance(prompt, str):
-            return prompt
-        if hasattr(prompt, "to_string"):
-            return prompt.to_string()
-        return str(prompt)
-
-    def _extract_content(self, data: Any) -> str:
-        if isinstance(data, dict):
-            choices = data.get("choices") or []
-            if choices:
-                message = choices[0].get("message") or {}
-                content = message.get("content")
-                if isinstance(content, str):
-                    return content
-                if isinstance(content, list):
-                    return "".join(
-                        i.get("text", "") if isinstance(i, dict) else str(i)
-                        for i in content
-                    )
-            text = data.get("generated_text")
-            if isinstance(text, str):
-                return text
-        if isinstance(data, list) and data:
-            item = data[0]
-            if isinstance(item, dict):
-                text = item.get("generated_text")
-                if isinstance(text, str):
-                    return text
-        err = f"Could not extract text from response: {data}"
-        log_error(_llama_logger, err)
-        raise ValueError(f"[LlamaClient] {err}")
-
-
+# ── Factory function ───────────────────────────────────────────────────────────
 __all__ = [
     "EndpointResponse",
     "SageMakerEndpointClient",
