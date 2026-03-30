@@ -19,6 +19,7 @@ def get_llm() -> EndpointLLM:
     mode = cfg.llm_mode.strip().lower()
     logger.info(f"LLM_MODE = '{mode}'")
 
+    # For SageMaker, we use a custom SageMakerEndpointClient wrapped in an EndpointLLM.
     if mode == "sagemaker":
         logger.info(
             f"Initialising SageMaker endpoint '{cfg.sagemaker_endpoint}' "
@@ -45,6 +46,7 @@ def get_llm() -> EndpointLLM:
             log_error(logger, "Failed to initialise SageMaker client", exc)
             raise
 
+    # For HTTP-based LLMs, we assume a generic EndpointLLM that can wrap any HTTP client.
     if mode == "llama":
         logger.info(
             f"Initialising Llama HTTP endpoint '{cfg.llm_base_url}' "
