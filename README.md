@@ -67,6 +67,7 @@ The app **never diagnoses**, **never prescribes**, and **always recommends consu
 │                        PRESENTATION LAYER                               │
 │                                                                         │
 │   app.py — Main Streamlit entry point and request orchestrator          │
+│                                                                         │
 │   ┌──────────────────────────┐   ┌──────────────────────────────────┐   │
 │   │      ui/sidebar.py       │   │     ui/chat_interface.py         │   │
 │   │  - Disclaimer banner     │   │  - Welcome message               │   │
@@ -74,9 +75,11 @@ The app **never diagnoses**, **never prescribes**, and **always recommends consu
 │   │    (from JSON data)      │   │  - User 👤 / Assistant 🩺        │   │
 │   │  - Duration / severity   │   │  - Source citation expander      │   │
 │   │  - Structured query      │   │    (SHOW_RETRIEVED_SOURCES)      │   │
-│   │  - Clear chat            │   └──────────────────────────────────┘   │
-│   │  - About section         │   ui_text_config.py                      │
-│   └──────────────────────────┘   All UI copy decoupled from logic       │
+│   │  - Clear chat            │   │                                  │   │
+│   │  - About section         │   └──────────────────────────────────┘   │
+│   └──────────────────────────┘                                          │
+│                                                                         │
+│   ui_text_config.py — All UI copy decoupled from logic                  │
 └──────────────────────────────────┬──────────────────────────────────────┘
                                    │ User Query
                                    ▼
@@ -159,8 +162,8 @@ The app **never diagnoses**, **never prescribes**, and **always recommends consu
 ┌──────────────────────────────────────────────────────────────────────┐
 │  DATA LAYER                                                          │
 │  data/ — Three WHO/CDC-curated JSON files                            │
-│  vector_store/faiss_index/ — Persisted FAISS index (auto-generated) │
-│  models/all-MiniLM-L6-v2/ — Local embedding model (no download)     │
+│  vector_store/faiss_index/ — Persisted FAISS index (auto-generated)  │
+│  models/all-MiniLM-L6-v2/ — Local embedding model (no download)      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -885,7 +888,11 @@ python -m pip install -r requirements.txt
 python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2').save('models/all-MiniLM-L6-v2')"
 ```
 
-> This saves the model to `models/all-MiniLM-L6-v2/` so the app runs fully offline with no internet access at runtime. Skip this step if the `models/all-MiniLM-L6-v2/` directory is already present.
+> 📥 **What this does:** Downloads and saves the `all-MiniLM-L6-v2` embedding model to `models/all-MiniLM-L6-v2/` locally.
+>
+> 🌐 **Why:** The app loads the model from disk at runtime — **no internet connection required** after this one-time download.
+>
+> ⏭️ **Skip if:** The `models/all-MiniLM-L6-v2/` directory already exists in the project root (it is included by default in this repo).
 
 ### 5. Configure your LLM endpoint
 
