@@ -5,6 +5,11 @@ Direct endpoint test (non-Streamlit).
 Validates endpoint connectivity and inference capability.
 """
 
+import sys
+import os
+# Ensure the project root is on sys.path so config and other modules can be found
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import time
 from config import cfg
 from llm.model_loader import get_llm
