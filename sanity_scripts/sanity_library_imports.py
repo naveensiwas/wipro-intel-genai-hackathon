@@ -4,6 +4,11 @@ Sanity Check – Comprehensive library import validation for Healthcare Symptom 
 Validates all required libraries for the Healthcare Symptom Checker project.
 Provides detailed feedback on each import with structured logging.
 """
+import sys
+import os
+# Ensure the project root is on sys.path so logger_config and other modules can be found
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from logger_config import get_logger, log_success, log_error, log_section
 logger = get_logger(__name__)
 
