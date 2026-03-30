@@ -5,6 +5,11 @@ Validates all required imports and data loading functions for the Healthcare Sym
 Provides detailed feedback on each import and data load with structured logging.
 """
 
+import sys
+import os
+# Ensure the project root is on sys.path so logger_config and other modules can be found
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from logger_config import get_logger, log_section, log_success, log_error, log_step
 logger = get_logger(__name__)
 
