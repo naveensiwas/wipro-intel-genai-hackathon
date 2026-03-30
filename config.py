@@ -1,39 +1,44 @@
 """
-Centralised configuration for the Healthcare Symptom Checker application.
+Centralized runtime configuration for the Healthcare Symptom Checker application.
+UI text lives in a separate module: ui_text_config.py
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
+from logger_config import get_logger, log_section
+from ui_text_config import UIText
+logger = get_logger(__name__)
 
 
 @dataclass
 class AppConfig:
     # ── LLM mode switch ───────────────────────────────────────────────────────
-    # Set LLM_MODE=sagemaker  → uses AWS SageMaker endpoint via boto3 + SSO
-    # Set LLM_MODE=llama      → uses remote Llama HTTP endpoint directly
+    # LLM backend selector:
+    # - "sagemaker": AWS SageMaker endpoint via boto3
+    # - "llama": direct HTTP endpoint (/v1/chat/completions style)
 
-    # For local testing, you can set this to "llama" to bypass AWS SageMaker and use a direct HTTP endpoint instead.
-    # This is useful for development without incurring AWS costs or needing AWS credentials.
-    # llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # For local testing.
+    # AWS SageMaker endpoint OR direct HTTP endpoint (/v1/chat/completions style)
+    #llm_mode: str = os.getenv("LLM_MODE", "sagemaker")   # For local testing.
     llm_mode: str = os.getenv("LLM_MODE", "llama")   # For JUMP machine.
 
     # ── AWS SageMaker settings (used when llm_mode=sagemaker) ─────────────────
-    aws_profile:          str   = os.getenv("AWS_PROFILE",       "my-sso")
-    aws_region:           str   = os.getenv("AWS_REGION",        "us-east-2")
+    aws_profile:          str   = os.getenv("AWS_PROFILE", "my-sso")
+    aws_region:           str   = os.getenv("AWS_REGION", "us-east-2")
     sagemaker_endpoint:   str   = os.getenv("SAGEMAKER_ENDPOINT","llama-3-2-3b-tgi-cpu-endpoint")
 
     # ── Llama HTTP endpoint settings (used when llm_mode=llama) ───────────────
-    llm_base_url:         str   = os.getenv("LLM_BASE_URL",      "http://wiphackq0vcsii.cloudloka.com:8000/v1")
-    llm_api_key:          str   = os.getenv("LLM_API_KEY",       "")
+    llm_base_url:         str   = os.getenv("LLM_BASE_URL", "http://wiphackq0vcsii.cloudloka.com:8000/v1")
+    llm_api_key:          str   = os.getenv("LLM_API_KEY", "")
 
     # ── Shared LLM generation settings ────────────────────────────────────────
-    llm_model:            str   = os.getenv("LLM_MODEL",                "meta-llama/Meta-Llama-3.1-8B-Instruct")
-    llm_timeout:          int   = int(os.getenv("LLM_TIMEOUT",          "60"))
-    temperature:          float = float(os.getenv("LLM_TEMPERATURE",    "0.3"))
-    max_tokens:           int   = int(os.getenv("LLM_MAX_TOKENS",       "512"))
+    llm_model:            str   = os.getenv("LLM_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+    llm_timeout:          int   = int(os.getenv("LLM_TIMEOUT", "120"))  # seconds
+    temperature:          float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
+    max_tokens:           int   = int(os.getenv("LLM_MAX_TOKENS", "512"))
     verbose:              bool  = os.getenv("LLM_VERBOSE", "false").lower() == "true"
 
     # ── Embeddings ─────────────────────────────────────────────────────────
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    # embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2" # Original HuggingFace model (CPU-friendly)
+    embedding_model: str = "models/all-MiniLM-L6-v2" # Local path to the same model (for faster loading)
 
     # ── RAG / chunking ─────────────────────────────────────────────────────
     chunk_size: int = 400
@@ -48,16 +53,14 @@ class AppConfig:
     conditions_info_path:     str = "data/conditions_info.json"
     preventive_tips_path:     str = "data/preventive_tips.json"
 
-    # ── UI ─────────────────────────────────────────────────────────────────
-    app_title: str = "🩺 Healthcare Symptom Information Assistant"
-    disclaimer: str = (
-        "⚠️ **Disclaimer:** This tool provides general health information only. "
-        "It is **NOT** a substitute for professional medical advice, diagnosis, or treatment. "
-        "Always consult a qualified healthcare provider for medical concerns."
-    )
+    # ── UI behavior ─────────────────────────────────────────────────────────
+    show_retrieved_sources: bool = os.getenv("SHOW_RETRIEVED_SOURCES", "false").lower() == "true" # Toggle for displaying retrieved source documents in the UI.
+
+    # ── UI text ─────────────────────────────────────────────────────────────
+    ui_text: UIText = field(default_factory=UIText)
 
 
-# Singleton instance used across all modules
+# Shared config instance across modules
 cfg = AppConfig()
 
 # ── Configuration diagnostic info (for debugging) ──────────────────────────────
@@ -71,8 +74,6 @@ _env_overrides = {
 _active_overrides = {k: v for k, v in _env_overrides.items() if v is not None}
 
 if _active_overrides:
-    import sys
-    print(f"⚙️  Config: Environment variable overrides detected:", file=sys.stderr)
+    log_section(logger, "Config: Environment variable overrides detected")
     for key, val in _active_overrides.items():
-        print(f"   • {key}={val}", file=sys.stderr)
-
+        logger.info(f"• {key}={val}")
