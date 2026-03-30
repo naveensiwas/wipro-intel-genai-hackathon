@@ -3,32 +3,14 @@ Chat interface component.
 Renders the message history and handles new messages.
 """
 import streamlit as st
-
-
-_WELCOME_MESSAGE = """👋 **Hello! I'm your Health Information Assistant.**
-
-I can help you understand:
-- 🤒 What conditions may be associated with your symptoms
-- 💊 General care and wellbeing tips
-- 🏥 When you should seek medical care
-- 👨‍⚕️ What type of specialist to consult
-
-**How to use:**
-- Type your symptoms in the chat box below, or
-- Use the **Quick Symptom Guide** in the sidebar to build a structured query
-
-⚠️ *Remember: I provide general health information only — not medical diagnoses. Always consult a healthcare professional for medical concerns.*
-
----
-*What symptoms are you experiencing today?*
-"""
+from config import cfg
 
 
 def init_chat_state():
     """Initialise session state for chat."""
     if "messages" not in st.session_state:
         st.session_state["messages"] = [
-            {"role": "assistant", "content": _WELCOME_MESSAGE, "sources": []}
+            {"role": "assistant", "content": cfg.ui_text.chat.welcome_message, "sources": []}
         ]
 
 
@@ -39,19 +21,20 @@ def render_chat_history():
         content = msg["content"]
         sources = msg.get("sources", [])
 
+        # Use different avatars for user and assistant messages
         with st.chat_message(role, avatar="🩺" if role == "assistant" else "👤"):
             st.markdown(content)
 
             # Show retrieved sources in a collapsible section
-            if sources:
-                with st.expander("📚 View retrieved health knowledge sources"):
+            if sources and cfg.show_retrieved_sources:
+                with st.expander(cfg.ui_text.page.source_expander_label):
                     for i, src in enumerate(sources, 1):
                         meta = src.get("metadata", {})
                         label = (
                             meta.get("condition")
                             or meta.get("symptom")
                             or meta.get("category")
-                            or meta.get("source_file", "Health Data")
+                            or meta.get("source_file", cfg.ui_text.page.source_fallback_label)
                         )
                         st.markdown(f"**Source {i} — {label}**")
                         st.caption(src["content"])
@@ -65,4 +48,3 @@ def add_message(role: str, content: str, sources: list = None):
         "content": content,
         "sources": sources or [],
     })
-
