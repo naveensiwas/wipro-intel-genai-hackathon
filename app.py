@@ -2,44 +2,44 @@
 Healthcare Symptom Information Assistant — Main Streamlit Application
 Powered by a configurable LLM endpoint · RAG · LangChain · FAISS
 """
-import streamlit as st
-
-# ── Page config (must be first Streamlit call) ─────────────────────────────────
-st.set_page_config(
-    page_title="Healthcare Symptom Checker",
-    page_icon="🩺",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
 # ── Imports ────────────────────────────────────────────────────────────────────
+import streamlit as st
 from config import cfg
 from llm.model_loader import get_llm
 from rag.vector_store import build_or_load_vector_store
 from rag.retriever import build_rag_chain, retrieve_sources
 from ui.sidebar import render_sidebar
 from ui.chat_interface import init_chat_state, render_chat_history, add_message
-from utils.safety_filter import sanitize_response
+from utils.safety_filter import sanitize_response, is_health_related, get_off_domain_message
 from logger_config import get_logger, log_section, log_step, log_success, log_error
 
 logger = get_logger(__name__)
 
 
-# ── Cached resource loaders ────────────────────────────────────────────────────
+# ── Page config (must be first Streamlit call) ─────────────────────────────────
+st.set_page_config(
+    page_title=cfg.ui_text.page.page_title,
+    page_icon=cfg.ui_text.page.page_icon,
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-@st.cache_resource(show_spinner="🔄 Connecting to configured LLM endpoint…")
+
+# ── Cached resource loaders ────────────────────────────────────────────────────
+@st.cache_resource(show_spinner=cfg.ui_text.page.load_llm_spinner)
 def load_llm():
     log_step(logger, 1, "Initialising LLM client")
     return get_llm()
 
 
-@st.cache_resource(show_spinner="🔄 Building knowledge index…")
+@st.cache_resource(show_spinner=cfg.ui_text.page.load_vector_store_spinner)
 def load_vector_store():
     log_step(logger, 2, "Building / loading FAISS vector store")
     return build_or_load_vector_store()
 
 
-@st.cache_resource(show_spinner="🔗 Assembling RAG pipeline…")
+@st.cache_resource(show_spinner=cfg.ui_text.page.load_rag_spinner)
 def load_rag_chain(_llm, _vector_store):
     log_step(logger, 3, "Assembling RAG chain")
     return build_rag_chain(_llm, _vector_store)
@@ -48,18 +48,15 @@ def load_rag_chain(_llm, _vector_store):
 # ── Main App ───────────────────────────────────────────────────────────────────
 
 def main():
-    # Initialise chat state
+    # Initialise session state for multi-turn chat across reruns
     init_chat_state()
 
-    # Render sidebar
+    # Render controls (endpoint mode, presets, and app options)
     render_sidebar()
 
     # ── Header ──
-    st.markdown(f"# {cfg.app_title}")
-    st.caption(
-        f"General health information assistant · Powered by {cfg.llm_model} via configured LLM endpoint + RAG · "
-        "Sources: WHO / CDC · **Not a substitute for medical advice**"
-    )
+    st.markdown(f"# {cfg.ui_text.page.app_title}")
+    st.caption(cfg.ui_text.page.header_caption_template.format(llm_model=cfg.llm_model))
     st.divider()
 
     # ── Load backend resources (cached after first call) ──
@@ -73,7 +70,7 @@ def main():
     # ── Check for prefilled query from sidebar structured input ──
     prefilled  = st.session_state.pop("prefilled_query", None)
     user_input = st.chat_input(
-        "Describe your symptoms here… (e.g. 'I have a persistent cough and fever for 3 days')",
+        cfg.ui_text.page.chat_input_placeholder,
         key="chat_input",
     )
 
@@ -89,59 +86,62 @@ def main():
 
         # Generate response
         with st.chat_message("assistant", avatar="🩺"):
-            with st.spinner("🔍 Searching health knowledge base and generating response…"):
-                try:
-                    logger.info(f"Processing query: '{user_input[:80]}...'")
+            # Off-domain check — block non-health queries before hitting RAG
+            if not is_health_related(user_input):
+                off_domain_msg = get_off_domain_message()
+                st.warning(off_domain_msg)
+                add_message("assistant", off_domain_msg)
 
-                    # Run RAG chain
-                    result       = rag_chain.invoke({"query": user_input})
-                    raw_response = result.get("result", "")
+            # On-domain query — proceed with RAG pipeline
+            else:
+                with st.spinner(cfg.ui_text.page.response_spinner):
+                    try:
+                        logger.info(
+                            cfg.ui_text.page.query_log_template.format(query=f"{user_input[:80]}...")
+                        )
 
-                    # Retrieve sources for display
-                    sources      = retrieve_sources(vector_store, user_input)
-                    safe_response = sanitize_response(raw_response)
+                        # Invoke RAG pipeline (retrieval + grounded generation)
+                        logger.debug(f"[TRACE] rag_chain.invoke() entry point — mode={cfg.llm_mode}")
+                        result        = rag_chain.invoke({"query": user_input})
+                        raw_response  = result.get("result", "")
 
-                    log_success(logger, f"Response generated ({len(safe_response)} chars, {len(sources)} sources)")
+                        # Fetch top retrieved chunks separately for transparent source display
+                        sources       = retrieve_sources(vector_store, user_input)
+                        safe_response = sanitize_response(raw_response)
 
-                    # Display response
-                    st.markdown(safe_response)
+                        log_success(logger, f"Response generated ({len(safe_response)} chars, {len(sources)} sources)")
 
-                    # Show sources
-                    if sources:
-                        with st.expander("📚 View retrieved health knowledge sources"):
-                            for i, src in enumerate(sources, 1):
-                                meta  = src.get("metadata", {})
-                                label = (
-                                    meta.get("condition")
-                                    or meta.get("symptom")
-                                    or meta.get("category")
-                                    or meta.get("source_file", "Health Data")
-                                )
-                                st.markdown(f"**Source {i} — {label}**")
-                                st.caption(src["content"])
-                                st.divider()
+                        # Display response
+                        st.markdown(safe_response)
 
-                    # Persist to session state
-                    add_message("assistant", safe_response, sources)
+                        # Show sources
+                        if sources and cfg.show_retrieved_sources:
+                            with st.expander(cfg.ui_text.page.source_expander_label):
+                                for i, src in enumerate(sources, 1):
+                                    meta  = src.get("metadata", {})
+                                    label = (
+                                        meta.get("condition")
+                                        or meta.get("symptom")
+                                        or meta.get("category")
+                                        or meta.get("source_file", cfg.ui_text.page.source_fallback_label)
+                                    )
+                                    st.markdown(f"**Source {i} — {label}**")
+                                    st.caption(src["content"])
+                                    st.divider()
 
-                except Exception as e:
-                    log_error(logger, f"Error processing query: {e}", e)
-                    error_msg = (
-                        f"⚠️ An error occurred while generating the response: `{e}`\n\n"
-                        "Please try rephrasing your question or verify the configured LLM endpoint settings."
-                    )
-                    st.error(error_msg)
-                    add_message("assistant", error_msg)
+                        # Persist assistant output and sources for chat history replay
+                        add_message("assistant", safe_response, sources)
+
+                    except Exception as e:
+                        log_error(logger, f"Error processing query: {e}", e)
+                        error_msg = cfg.ui_text.page.error_message_template.format(error=e)
+                        st.error(error_msg)
+                        add_message("assistant", error_msg)
 
     # ── Footer ──
     st.divider()
     st.markdown(
-        "<div style='text-align:center; color:grey; font-size:0.8em;'>"
-        "🩺 Healthcare Symptom Information Assistant · "
-        "This tool provides general health information only · "
-        "Always consult a qualified healthcare professional · "
-        "Sources: WHO / CDC"
-        "</div>",
+        cfg.ui_text.page.footer_html,
         unsafe_allow_html=True,
     )
 
@@ -149,4 +149,3 @@ def main():
 if __name__ == "__main__":
     log_section(logger, "Healthcare Symptom Information Assistant — Starting")
     main()
-
