@@ -4,7 +4,6 @@ Wires the retriever and LLM into a RetrievalQA chain with a custom healthcare pr
 """
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
-from langchain_core.prompts import PromptTemplate
 from llm.prompt_templates import RAG_PROMPT
 from config import cfg
 from logger_config import get_logger, log_success, log_error
