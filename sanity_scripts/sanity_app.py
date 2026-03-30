@@ -4,6 +4,11 @@ Sanity Check – LLM Endpoint Inference Validation
 Tests the full LLM call path with the configured endpoint.
 Displays endpoint config and logs all stages of the inference.
 """
+import sys
+import os
+# Ensure the project root is on sys.path so config and other modules can be found
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import streamlit as st
 from config import cfg
 from llm.model_loader import get_llm
