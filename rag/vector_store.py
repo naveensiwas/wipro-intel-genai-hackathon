@@ -14,6 +14,7 @@ logger = get_logger(__name__)
 
 
 def _split_documents(docs):
+    """Split documents into chunks using RecursiveCharacterTextSplitter."""
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=cfg.chunk_size,
         chunk_overlap=cfg.chunk_overlap,
@@ -22,6 +23,16 @@ def _split_documents(docs):
     chunks = splitter.split_documents(docs)
     logger.debug(f"Split {len(docs)} documents into {len(chunks)} chunks "
                  f"(size={cfg.chunk_size}, overlap={cfg.chunk_overlap})")
+
+    # Log details of the first few chunks for debugging
+    for idx, chunk in enumerate(chunks, start=1):
+        source = chunk.metadata.get("source", "unknown")
+        preview = chunk.page_content.replace("\n", " ").strip()[:200]
+        logger.debug(
+            f"Chunk {idx}/{len(chunks)} | source={source} | "
+            f"length={len(chunk.page_content)} | preview={preview}"
+        )
+
     return chunks
 
 
