@@ -1,0 +1,127 @@
+[
+  {
+    "category": "Nutrition",
+    "tips": [
+      "Eat a variety of fruits and vegetables — aim for at least 5 portions per day (WHO recommendation).",
+      "Choose whole grains over refined carbohydrates to support stable blood sugar levels.",
+      "Limit processed foods high in salt, sugar, and saturated fats.",
+      "Stay adequately hydrated — adults generally need 1.5–2 litres of water daily.",
+      "Include healthy protein sources such as legumes, fish, poultry, and nuts.",
+      "Limit alcohol consumption — no amount of alcohol is completely safe for health (WHO).",
+      "Reduce sodium intake to below 5g per day to help manage blood pressure (WHO)."
+    ],
+    "source": "WHO"
+  },
+  {
+    "category": "Physical Activity",
+    "tips": [
+      "Adults should aim for at least 150–300 minutes of moderate-intensity aerobic activity per week (WHO).",
+      "Include muscle-strengthening activities (e.g., resistance training) at least 2 days per week.",
+      "Reduce sedentary time — even breaking up prolonged sitting with short walks helps.",
+      "Children and adolescents should get at least 60 minutes of moderate-to-vigorous physical activity daily.",
+      "Regular walking, swimming, or cycling are safe options for most adults.",
+      "Physical activity helps manage weight, blood pressure, blood sugar, and mental health."
+    ],
+    "source": "WHO"
+  },
+  {
+    "category": "Sleep",
+    "tips": [
+      "Adults should aim for 7–9 hours of sleep per night (CDC).",
+      "Maintain a consistent sleep schedule — go to bed and wake up at the same time daily.",
+      "Create a relaxing bedtime routine and a cool, dark, quiet sleep environment.",
+      "Limit screen exposure (phones, tablets) at least 1 hour before bed.",
+      "Avoid caffeine and heavy meals in the hours before bedtime.",
+      "Chronic sleep deprivation increases the risk of obesity, diabetes, cardiovascular disease, and mental health disorders."
+    ],
+    "source": "CDC"
+  },
+  {
+    "category": "Mental Health",
+    "tips": [
+      "Talk about your feelings — connecting with friends, family, or a counsellor is important.",
+      "Practice stress management techniques: deep breathing, mindfulness, meditation, or yoga.",
+      "Regular physical activity is one of the most effective ways to improve mood and reduce anxiety.",
+      "Take breaks and set healthy work-life boundaries.",
+      "Limit news and social media if it is causing anxiety.",
+      "Seek professional support early — mental health conditions are treatable.",
+      "Community connection and social support are powerful protective factors for mental wellbeing (WHO)."
+    ],
+    "source": "WHO"
+  },
+  {
+    "category": "Hygiene",
+    "tips": [
+      "Wash hands frequently with soap and water for at least 20 seconds — especially before eating and after using the toilet (CDC).",
+      "Use alcohol-based hand sanitiser when soap and water are not available.",
+      "Cover your mouth and nose with a bent elbow or tissue when you cough or sneeze.",
+      "Avoid touching your face — eyes, nose, and mouth are entry points for germs.",
+      "Keep your home, kitchen, and bathroom clean and well-ventilated.",
+      "Safe food handling: store, prepare, and cook food safely to prevent foodborne illness.",
+      "Brush teeth twice daily and floss daily — oral health is closely linked to overall health."
+    ],
+    "source": "CDC / WHO"
+  },
+  {
+    "category": "Vaccination",
+    "tips": [
+      "Vaccines are one of the most effective public health tools available — they protect individuals and communities (WHO).",
+      "Keep up with recommended vaccine schedules for your age group and country.",
+      "Common vaccines for adults include: influenza (annual), COVID-19, tetanus booster, pneumococcal, shingles, and hepatitis B.",
+      "Travellers should check travel health requirements and recommended vaccines for their destination.",
+      "Vaccines for children (measles, polio, hepatitis B, DTP, etc.) are critical to prevent childhood illnesses.",
+      "Consult your GP or local health authority for a personalised vaccination schedule."
+    ],
+    "source": "WHO"
+  },
+  {
+    "category": "Preventive Screenings",
+    "tips": [
+      "Regular blood pressure checks: high blood pressure often has no symptoms but is a leading risk factor for heart disease and stroke.",
+      "Blood glucose testing: type 2 diabetes often develops silently — early detection prevents complications.",
+      "Cholesterol checks: high cholesterol increases the risk of heart disease.",
+      "Cancer screenings: regular mammograms, cervical smear tests, colorectal screening, and skin checks are recommended based on age and risk.",
+      "Eye and dental check-ups should be performed regularly even if you feel well.",
+      "Speak with your healthcare provider to determine which screenings are appropriate for your age and risk factors."
+    ],
+    "source": "CDC / WHO"
+  },
+  {
+    "category": "Cardiovascular Health",
+    "tips": [
+      "Quit smoking — smoking is the single most preventable cause of cardiovascular disease (WHO).",
+      "Manage blood pressure: reduce salt, limit alcohol, exercise regularly, and take prescribed medications.",
+      "Maintain a healthy weight and waist circumference.",
+      "Manage blood cholesterol through diet (reduce saturated fats) and medication if needed.",
+      "Control blood sugar if you have diabetes.",
+      "Manage stress — chronic stress contributes to heart disease risk.",
+      "Regular aerobic exercise strengthens the heart and improves circulation."
+    ],
+    "source": "WHO / American Heart Association"
+  },
+  {
+    "category": "Bone and Joint Health",
+    "tips": [
+      "Adequate calcium intake (1000–1200 mg/day for adults) supports bone density — found in dairy, leafy greens, and fortified foods.",
+      "Vitamin D is essential for calcium absorption — safe sun exposure and supplements may be needed.",
+      "Weight-bearing exercise (walking, jogging, strength training) builds and maintains bone density.",
+      "Avoid smoking and excessive alcohol, which weaken bones.",
+      "Fall prevention is critical for older adults — remove trip hazards, improve lighting, and consider balance exercises.",
+      "Maintain a healthy body weight to reduce stress on joints."
+    ],
+    "source": "WHO"
+  },
+  {
+    "category": "Diabetes Prevention",
+    "tips": [
+      "Lose excess weight — a 5–7% reduction in body weight significantly reduces the risk of type 2 diabetes (CDC).",
+      "Get at least 150 minutes of moderate physical activity per week.",
+      "Choose high-fibre, low-glycaemic index foods (whole grains, legumes, vegetables).",
+      "Reduce consumption of sugary beverages, sweets, and processed snacks.",
+      "Get regular blood sugar checks, especially with a family history of diabetes.",
+      "Quit smoking — smoking increases the risk of type 2 diabetes."
+    ],
+    "source": "CDC"
+  }
+]
+
