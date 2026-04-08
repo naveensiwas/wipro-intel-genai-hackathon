@@ -1,3 +1,1 @@
-"""
-Healthcare Symptom Information Assistant - Main Application Package
-"""
+# Healthcare Symptom Information Assistant - Main Application Package
