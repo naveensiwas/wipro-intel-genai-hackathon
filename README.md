@@ -8,19 +8,6 @@ A safe, trustworthy, and informative conversational AI system that helps users u
 
 ---
 
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [🏗️ Architecture](docs/ARCHITECTURE.md) | System diagrams, request data flow, RAG indexing pipeline, safety layers |
-| [📋 Module Breakdown](docs/MODULES.md) | Detailed per-module documentation (UI, RAG, LLM, Safety, Core, Config) |
-| [🛠️ Setup & Installation](docs/SETUP.md) | Clone, install, download embedding model, configure, run |
-| [🔧 Configuration Reference](docs/CONFIGURATION.md) | All environment variables with defaults, types, and descriptions |
-| [📊 Performance Monitoring](docs/MONITORING.md) | Metrics schema, field reference, dashboard panels, thread safety |
-| [🧑‍💻 Development & FAQ](docs/DEVELOPMENT.md) | Customization, troubleshooting, dependencies, FAQ |
-
----
-
 ## 🎯 Key Features
 
 | Feature | Detail |
@@ -107,6 +94,19 @@ Wipro_Intel_Hackathon_LLM_EP/
 └── scripts/
     └── sanity/                  # Startup verification scripts
 ```
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [🏗️ Architecture](docs/ARCHITECTURE.md) | System diagrams, request data flow, RAG indexing pipeline, safety layers |
+| [📋 Module Breakdown](docs/MODULES.md) | Detailed per-module documentation (UI, RAG, LLM, Safety, Core, Config) |
+| [🛠️ Setup & Installation](docs/SETUP.md) | Clone, install, download embedding model, configure, run |
+| [🔧 Configuration Reference](docs/CONFIGURATION.md) | All environment variables with defaults, types, and descriptions |
+| [📊 Performance Monitoring](docs/MONITORING.md) | Metrics schema, field reference, dashboard panels, thread safety |
+| [🧑‍💻 Development & FAQ](docs/DEVELOPMENT.md) | Customization, troubleshooting, dependencies, FAQ |
 
 ---
 
