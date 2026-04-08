@@ -62,7 +62,7 @@ Wipro_Intel_Hackathon_LLM_EP/
 ├── app_launcher.py              # Root entry point — sets PYTHONPATH, runs Streamlit
 ├── requirements.txt             # Pinned Python dependencies
 ├── pyproject.toml               # Build system (setuptools); package root = src/
-├── README.md                    # This file
+├── README.md                    # This file — project overview, quick start, documentation links
 │
 ├── docs/                        # 📚 Detailed documentation
 │   ├── ARCHITECTURE.md          # System diagrams & data flow
