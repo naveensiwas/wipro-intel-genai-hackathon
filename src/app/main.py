@@ -16,7 +16,13 @@ from app.ui.chat_interface import init_chat_state, render_chat_history, add_mess
 from app.ui.metrics_dashboard import main as render_metrics_dashboard
 from app.ui.sidebar import render_sidebar
 from app.ui.source_utils import format_source_label, truncate_source_content
-from app.safety.safety_filter import sanitize_response, is_health_related_with_mode, get_off_domain_message
+from app.safety.safety_filter import (
+    sanitize_response,
+    is_health_related_with_mode,
+    get_off_domain_message,
+    is_simple_greeting,
+    get_greeting_response,
+)
 logger = get_logger(__name__)
 
 
@@ -46,6 +52,53 @@ def load_vector_store():
 def load_rag_chain(_llm, _vector_store):
     log_step(logger, 3, "Assembling RAG chain")
     return build_rag_chain(_llm, _vector_store)
+
+
+def _build_recent_history(max_turns: int = 4) -> list[tuple[str, str]]:
+    """Collect recent user/assistant turns from session state (excluding welcome text)."""
+    messages = st.session_state.get("messages", [])
+    if not messages:
+        return []
+
+    cleaned: list[tuple[str, str]] = []
+    for msg in messages:
+        role = msg.get("role")
+        content = (msg.get("content") or "").strip()
+        if role not in {"user", "assistant"} or not content:
+            continue
+        # Skip initial assistant welcome text so memory stays focused.
+        if role == "assistant" and content.startswith("👋 **Welcome!"):
+            continue
+        cleaned.append((role, content))
+
+    # The latest user message is added just before generation; avoid duplicating it.
+    if cleaned and cleaned[-1][0] == "user":
+        cleaned = cleaned[:-1]
+
+    if not cleaned:
+        return []
+
+    return cleaned[-(2 * max_turns):]
+
+
+def _build_history_aware_query(user_input: str, max_turns: int = 4) -> str:
+    """Build query text that includes recent conversation context for follow-up questions."""
+    history = _build_recent_history(max_turns=max_turns)
+    if not history:
+        return user_input
+
+    lines: list[str] = []
+    for role, content in history:
+        speaker = "User" if role == "user" else "Assistant"
+        lines.append(f"{speaker}: {content}")
+
+    history_block = "\n".join(lines)
+    return (
+        "Use the recent conversation context to resolve follow-up references. "
+        "Prioritise the current user question.\n\n"
+        f"Recent conversation:\n{history_block}\n\n"
+        f"Current user question:\n{user_input}"
+    )
 
 
 # ── Main App ───────────────────────────────────────────────────────────────────
@@ -126,69 +179,78 @@ def main():
         # Assistant response block — will be populated after RAG processing.
         with st.chat_message("assistant", avatar="🩺"):
 
+            # Greeting fast-path — bypass safety gate, retrieval, and LLM for simple greetings.
+            if is_simple_greeting(user_input):
+                safe_response = get_greeting_response()
+                st.markdown(safe_response)
+                add_message("assistant", safe_response)
+                logger.info("Handled greeting with static response (no retrieval / no LLM call)")
+
             # Off-domain check — block non-health queries before hitting RAG
-            allowed, semantic_score = is_health_related_with_mode(user_input, vector_store)
-            if not allowed:
-                off_domain_msg = get_off_domain_message()
-                st.warning(off_domain_msg)
-                add_message("assistant", off_domain_msg)
-                safe_response = off_domain_msg
-
-                # Log semantic gate rejection when a score is available
-                if semantic_score is not None:
-                    logger.info(
-                        f"Domain gate rejected query (mode={cfg.domain_filter_mode}, "
-                        f"score={semantic_score:.4f}, threshold={cfg.domain_similarity_threshold:.4f})"
-                    )
-
-            # On-domain query — proceed with RAG pipeline
             else:
-                with st.spinner(cfg.ui_text.page.response_spinner):
-                    try:
+                allowed, semantic_score = is_health_related_with_mode(user_input, vector_store)
+                if not allowed:
+                    off_domain_msg = get_off_domain_message()
+                    st.warning(off_domain_msg)
+                    add_message("assistant", off_domain_msg)
+                    safe_response = off_domain_msg
+
+                    # Log semantic gate rejection when a score is available
+                    if semantic_score is not None:
                         logger.info(
-                            cfg.ui_text.page.query_log_template.format(query=f"{user_input[:80]}...")
+                            f"Domain gate rejected query (mode={cfg.domain_filter_mode}, "
+                            f"score={semantic_score:.4f}, threshold={cfg.domain_similarity_threshold:.4f})"
                         )
 
-                        retrieval_started = time.perf_counter()
-                        sources = retrieve_sources(vector_store, user_input)
-                        retrieval_ended = time.perf_counter()
+                # On-domain query — proceed with RAG pipeline
+                else:
+                    with st.spinner(cfg.ui_text.page.response_spinner):
+                        try:
+                            logger.info(
+                                cfg.ui_text.page.query_log_template.format(query=f"{user_input[:80]}...")
+                            )
 
-                        # Invoke RAG pipeline (retrieval + grounded generation)
-                        logger.debug(f"[TRACE] rag_chain.invoke() entry point — mode={cfg.llm_mode}")
-                        generation_started = time.perf_counter()
-                        result = rag_chain.invoke({"query": user_input})
-                        generation_ended = time.perf_counter()
+                            retrieval_started = time.perf_counter()
+                            sources = retrieve_sources(vector_store, user_input)
+                            retrieval_ended = time.perf_counter()
 
-                        raw_response  = result.get("result", "")
-                        safe_response = sanitize_response(raw_response)
-                        # Non-streaming invoke: approximate TTFT with generation completion timestamp.
-                        first_token_ts = generation_ended
+                            # Invoke RAG pipeline (retrieval + grounded generation) with recent chat context.
+                            logger.debug(f"[TRACE] rag_chain.invoke() entry point — mode={cfg.llm_mode}")
+                            generation_started = time.perf_counter()
+                            effective_query = _build_history_aware_query(user_input, max_turns=4)
+                            result = rag_chain.invoke({"query": effective_query})
+                            generation_ended = time.perf_counter()
 
-                        log_success(logger, f"Response generated ({len(safe_response)} chars, {len(sources)} sources)")
+                            raw_response  = result.get("result", "")
+                            safe_response = sanitize_response(raw_response)
+                            # Non-streaming invoke: approximate TTFT with generation completion timestamp.
+                            first_token_ts = generation_ended
 
-                        # Display response
-                        st.markdown(safe_response)
+                            log_success(logger, f"Response generated ({len(safe_response)} chars, {len(sources)} sources)")
 
-                        # Show sources
-                        if sources and cfg.show_retrieved_sources:
-                            with st.container(key=f"container-{request_key}"):
-                                with st.expander(cfg.ui_text.page.source_expander_label, key=f"expander-{request_key}"):
-                                    for i, src in enumerate(sources, 1):
-                                        meta  = src.get("metadata", {})
-                                        label = format_source_label(meta, cfg.ui_text.page.source_fallback_label)
-                                        st.markdown(f"**Source {i} — {label}**")
-                                        st.caption(src["content"])
-                                        st.divider()
+                            # Display response
+                            st.markdown(safe_response)
 
-                        # Persist assistant output and sources for chat history replay
-                        add_message("assistant", safe_response, sources)
+                            # Show sources
+                            if sources and cfg.show_retrieved_sources:
+                                with st.container(key=f"container-{request_key}"):
+                                    with st.expander(cfg.ui_text.page.source_expander_label, key=f"expander-{request_key}"):
+                                        for i, src in enumerate(sources, 1):
+                                            meta  = src.get("metadata", {})
+                                            label = format_source_label(meta, cfg.ui_text.page.source_fallback_label)
+                                            st.markdown(f"**Source {i} — {label}**")
+                                            st.caption(src["content"])
+                                            st.divider()
 
-                    except Exception as e:
-                        log_error(logger, f"Error processing query: {e}", e)
-                        error_msg = cfg.ui_text.page.error_message_template.format(error=e)
-                        st.error(error_msg)
-                        add_message("assistant", error_msg)
-                        error_message = str(e)
+                            # Persist assistant output and sources for chat history replay
+                            add_message("assistant", safe_response, sources)
+
+                        except Exception as e:
+                            log_error(logger, f"Error processing query: {e}", e)
+                            error_msg = cfg.ui_text.page.error_message_template.format(error=e)
+                            st.error(error_msg)
+                            add_message("assistant", error_msg)
+                            error_message = str(e)
 
         request_ended = time.perf_counter()
         st.session_state.active_requests = max(st.session_state.active_requests - 1, 0)
@@ -219,4 +281,3 @@ def main():
 if __name__ == "__main__":
     log_section(logger, "Healthcare Symptom Information Assistant — Starting")
     main()
-  
