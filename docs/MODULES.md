@@ -13,13 +13,19 @@
 - Tracks `st.session_state.active_requests` for concurrent user counting
 - Generates a unique `request_key = f"msg-{int(request_started * 1e9)}"` per request to avoid Streamlit duplicate element key errors
 - Supports prefilled queries from the sidebar Smart Symptom Guide via `st.session_state["prefilled_query"]`
+- Greeting fast-path: simple greetings are handled via `is_simple_greeting()` and `get_greeting_response()` without retrieval or LLM invocation
+- Domain-gated routing: non-health inputs are blocked via `is_health_related_with_mode()` before RAG execution
+- On-domain flow: `retrieve_sources()` + `rag_chain.invoke()` with history-aware query built via `_build_history_aware_query()`
+- Safety post-processing: generated responses are passed through `sanitize_response()` before display
 
 ### `chat_interface.py` — Multi-Turn Chat State
 - `init_chat_state()`: Creates `st.session_state["messages"]` with a welcome message on first load; subsequent reruns preserve full history
 - `render_chat_history()`: Iterates all messages with `st.chat_message()`; assistant uses `🩺` avatar, user uses `👤`; renders source expanders per message with indexed keys to avoid conflicts
 - `add_message(role, content, sources)`: Appends `{"role", "content", "sources"}` dicts to session state
 
-> ⚠️ **Note:** Chat history is persisted in the UI via session state but is **not** passed into the LLM prompt. Each query is answered independently based on retrieved context only. Prior conversation turns do not influence generation.
+> ✅ **Note:** Chat history is persisted in session state, and recent turns are incorporated in `main.py` via `_build_recent_history()` and `_build_history_aware_query()` to support follow-up question resolution.
+
+![Chat Interface](screenshots/chat_interface.png)
 
 ### `sidebar.py` — Navigation & Smart Symptom Guide
 - Renders Wipro and Intel logos side-by-side using `st.columns`
@@ -33,14 +39,45 @@
 - Clear chat button resets messages to the welcome message and removes any prefilled query
 
 ### `metrics_dashboard.py` — Performance Dashboard
-- Loads `data/runtime/metrics/performance_metrics.json`; gracefully handles missing/corrupt files
-- **Health Status Indicator**: 🟢 Healthy (≥80% success rate) / 🟡 Degraded (≥60%) / 🔴 Unhealthy (<60%)
-- Dashboard panels (each in a collapsible `st.expander`):
-  - **Summary**: Total requests, successful requests, avg total latency (sec), max concurrent users
-  - **Latency Averages**: End-to-end, retrieval, total, TTFT — all converted from ms → sec for display
-  - **Throughput & Context**: Tokens/sec, context size (tokens), output tokens, avg concurrent users
-- **Recent Requests Table**: Last 50 requests sorted descending; timestamps converted from UTC → IST (`Asia/Kolkata`); styled HTML table with blue header and alternating row stripes
-- **Controls**: CSV download button + reset popover (requires checkbox confirmation to prevent accidental reset)
+- Loads `data/runtime/metrics/performance_metrics.json`; gracefully handles missing/corrupt files via `_load_metrics_payload()`
+- `_build_dataframe()`: Converts request list to a typed pandas DataFrame; coerces numeric columns and parses `timestamp_utc` to UTC-aware datetimes
+- `_get_health_status()`: Returns a color-coded label — 🟢 Healthy (≥80% success rate) / 🟡 Degraded (≥60%) / 🔴 Unhealthy (<60%)
+- `_prepare_time_series()`: Produces a UTC-sorted copy of the DataFrame with ms → sec conversion columns for charting (`ttft_ms_sec`, `retrieval_latency_ms_sec`, `total_latency_ms_sec`)
+- `_format_timestamp_for_display()`: Converts UTC → IST (`Asia/Kolkata`), formats as `Ddd, DD Mon YYYY HH:MM AM/PM`
+- `_ms_to_seconds()` / `_format_duration_from_ms()`: Utility helpers for unit conversion and `X.XX sec` display strings
+
+**Chart-first layout** — `_render_visual_analytics()` is called before the requests table so aggregate trends are immediately visible.
+
+**Visual Analytics — `_render_visual_analytics(df, success_df)`**
+
+A collapsible **ℹ️ Quick guide** expander above the charts explains each metric category to reduce interpretation burden:
+- Speed metrics (TTFT, Total Latency, Retrieval Latency) — lower is better
+- Quality & load metrics (Tokens/sec, Success Rate, Concurrent Users)
+
+Six Altair charts rendered within this section:
+
+| Function | Chart Type | Metrics |
+|----------|-----------|---------|
+| `_render_latency_trend_chart(ts_df)` | Multi-series line + points (interactive) | TTFT, Retrieval, Total Latency over time (sec) |
+| `_render_latency_distribution_chart(df)` | Histogram (`maxbins=24`) | Total Latency distribution (sec), successful requests |
+| `_render_success_failure_chart(df)` | Donut chart (`innerRadius=55`) | Successful (#16a34a) vs Failed (#dc2626) request counts |
+| `_render_throughput_trend_chart(ts_df)` | Multi-series line + points (interactive) | Tokens/sec and Output Tokens over time |
+| `_render_context_output_bar_chart(df)` | Grouped bar | Avg Context Size vs Avg Output Tokens |
+| `_render_concurrency_chart(ts_df)` | Area chart (opacity=0.35, interactive) | Concurrent users over time |
+
+Each chart function handles missing/empty data gracefully with `st.info()` fallback messages.
+
+**Recent Requests Table**
+- Last 50 requests sorted descending; latency columns converted to `X.XX sec` display strings
+- Timestamps converted UTC → IST via `_format_timestamp_for_display()`
+- `SR No.` column added as 1-based sequential index
+- Rendered as a custom styled HTML table via pandas `Styler`: blue header (`#1e3a8a` on `#eff6ff`), alternating row stripes (`#f8fbff`), horizontal scroll wrapper
+
+**Controls**
+- CSV download button (exports raw ms values; produced by `_to_csv_bytes()`)
+- Reset popover (requires checkbox confirmation to prevent accidental reset; calls `reset_metrics()`)
+
+![Metrics Dashboard](screenshots/metrics_dashboard.png)
 
 ### `styles.py` — Centralized CSS
 - `StreamlitStyles.apply_all_styles()`: Injects CSS for page titles, taglines, sidebar branding, expander styling, button colors, footer
@@ -180,7 +217,7 @@ DOMAIN_FILTER_MODE
                                         └ fail → (False, score)
 ```
 
-**80+ Health Keywords** span: greetings (`hi`, `hello`, `hey`), symptoms (`fever`, `cough`, `pain`, `rash`, `nausea`, etc.), body systems (`heart`, `skin`, `throat`, `blood`), conditions (`diabetes`, `asthma`, `cancer`, `stroke`), procedures (`mri`, `x-ray`, `blood test`), and medications (`tablet`, `pill`, `prescription`).
+**Health Keywords** focus on medical/symptom terminology for domain gating; greeting handling is performed separately using greeting detection utilities.
 
 **Semantic Gate** — `is_health_related_semantic(query, vector_store)`:
 - Calls `get_top_similarity_score()` with `DOMAIN_SIMILARITY_K` docs (default: 1)
@@ -252,3 +289,4 @@ DOMAIN_FILTER_MODE
 ---
 
 *[← Back to README](../README.md)*
+
