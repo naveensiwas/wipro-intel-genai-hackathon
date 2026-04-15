@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 import pandas as pd
 import streamlit as st
+import altair as alt
 from app.core.metrics import reset_metrics
 from app.config.settings import cfg
 from app.ui.styles import StreamlitStyles
@@ -127,6 +128,327 @@ def _get_health_status(df: pd.DataFrame, success_df: pd.DataFrame) -> tuple[str,
         return "🔴 Unhealthy", "red"
 
 
+def _prepare_time_series(df: pd.DataFrame) -> pd.DataFrame:
+    """Prepare a clean UTC time-series DataFrame for charting."""
+    if df.empty or "timestamp_utc" not in df.columns:
+        return pd.DataFrame()
+
+    ts_df = df.copy()
+    ts_df = ts_df.dropna(subset=["timestamp_utc"]).sort_values("timestamp_utc")
+    if ts_df.empty:
+        return pd.DataFrame()
+
+    # Convert milliseconds to seconds for consistent chart units.
+    for ms_col in ["ttft_ms", "retrieval_latency_ms", "total_latency_ms", "end_to_end_latency_ms"]:
+        if ms_col in ts_df.columns:
+            ts_df[f"{ms_col}_sec"] = ts_df[ms_col] / 1000.0
+
+    return ts_df
+
+
+def _render_latency_trend_chart(ts_df: pd.DataFrame) -> None:
+    """Render multi-series latency trend chart over time."""
+    required_cols = [
+        "timestamp_utc",
+        "ttft_ms_sec",
+        "retrieval_latency_ms_sec",
+        "total_latency_ms_sec",
+    ]
+    if ts_df.empty or not all(c in ts_df.columns for c in required_cols):
+        st.info("Latency trend chart unavailable: insufficient latency data.")
+        return
+
+    plot_df = ts_df[[
+        "timestamp_utc",
+        "ttft_ms_sec",
+        "retrieval_latency_ms_sec",
+        "total_latency_ms_sec",
+    ]].rename(columns={
+        "ttft_ms_sec": "TTFT",
+        "retrieval_latency_ms_sec": "Retrieval",
+        "total_latency_ms_sec": "Total",
+    })
+
+    melted = plot_df.melt(
+        id_vars=["timestamp_utc"],
+        var_name="Metric",
+        value_name="Latency (sec)",
+    ).dropna(subset=["Latency (sec)"])
+
+    if melted.empty:
+        st.info("Latency trend chart unavailable: no valid latency values.")
+        return
+
+    chart = (
+        alt.Chart(melted)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("timestamp_utc:T", title="Request Time (UTC)"),
+            y=alt.Y("Latency (sec):Q", title="Latency (sec)", scale=alt.Scale(zero=True)),
+            color=alt.Color("Metric:N", title="Latency Metric"),
+            tooltip=[
+                alt.Tooltip("timestamp_utc:T", title="Timestamp"),
+                alt.Tooltip("Metric:N"),
+                alt.Tooltip("Latency (sec):Q", format=".3f"),
+            ],
+        )
+        .properties(height=320)
+        .interactive()
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+def _render_latency_distribution_chart(df: pd.DataFrame) -> None:
+    """Render histogram of total latency distribution."""
+    if df.empty or "total_latency_ms" not in df.columns:
+        st.info("Latency distribution unavailable: total latency data missing.")
+        return
+
+    lat_df = df[["total_latency_ms"]].dropna().copy()
+    if lat_df.empty:
+        st.info("Latency distribution unavailable: no total latency values.")
+        return
+
+    lat_df["Total Latency (sec)"] = lat_df["total_latency_ms"] / 1000.0
+
+    chart = (
+        alt.Chart(lat_df)
+        .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+        .encode(
+            x=alt.X("Total Latency (sec):Q", bin=alt.Bin(maxbins=24), title="Total Latency (sec)"),
+            y=alt.Y("count():Q", title="Request Count"),
+            tooltip=[
+                alt.Tooltip("count():Q", title="Requests"),
+            ],
+        )
+        .properties(height=280)
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+def _render_success_failure_chart(df: pd.DataFrame) -> None:
+    """Render success vs failure composition chart."""
+    if df.empty:
+        st.info("Health composition unavailable: no requests found.")
+        return
+
+    status = pd.Series(
+        ["Successful" if pd.isna(err) else "Failed" for err in df.get("error", pd.Series(dtype=object))],
+        name="Status",
+    )
+    status_df = status.value_counts().rename_axis("Status").reset_index(name="Count")
+
+    if status_df.empty:
+        st.info("Health composition unavailable.")
+        return
+
+    chart = (
+        alt.Chart(status_df)
+        .mark_arc(innerRadius=55)
+        .encode(
+            theta=alt.Theta("Count:Q"),
+            color=alt.Color("Status:N", scale=alt.Scale(range=["#16a34a", "#dc2626"])),
+            tooltip=[alt.Tooltip("Status:N"), alt.Tooltip("Count:Q")],
+        )
+        .properties(height=280)
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+def _render_throughput_trend_chart(ts_df: pd.DataFrame) -> None:
+    """Render tokens/sec and output token trends over time."""
+    if ts_df.empty:
+        st.info("Throughput trend unavailable: no timestamped data.")
+        return
+
+    cols = [c for c in ["timestamp_utc", "tokens_per_sec", "output_tokens"] if c in ts_df.columns]
+    if len(cols) < 2:
+        st.info("Throughput trend unavailable: missing throughput columns.")
+        return
+
+    frames = []
+    if "tokens_per_sec" in ts_df.columns:
+        tmp = ts_df[["timestamp_utc", "tokens_per_sec"]].dropna().copy()
+        tmp["Metric"] = "Tokens/sec"
+        tmp["Value"] = tmp["tokens_per_sec"]
+        frames.append(tmp[["timestamp_utc", "Metric", "Value"]])
+
+    if "output_tokens" in ts_df.columns:
+        tmp = ts_df[["timestamp_utc", "output_tokens"]].dropna().copy()
+        tmp["Metric"] = "Output Tokens"
+        tmp["Value"] = tmp["output_tokens"]
+        frames.append(tmp[["timestamp_utc", "Metric", "Value"]])
+
+    if not frames:
+        st.info("Throughput trend unavailable: no valid throughput values.")
+        return
+
+    plot_df = pd.concat(frames, ignore_index=True)
+
+    chart = (
+        alt.Chart(plot_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("timestamp_utc:T", title="Request Time (UTC)"),
+            y=alt.Y("Value:Q", title="Metric Value"),
+            color=alt.Color("Metric:N"),
+            tooltip=[
+                alt.Tooltip("timestamp_utc:T", title="Timestamp"),
+                alt.Tooltip("Metric:N"),
+                alt.Tooltip("Value:Q", format=".3f"),
+            ],
+        )
+        .properties(height=300)
+        .interactive()
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+def _render_context_output_bar_chart(df: pd.DataFrame) -> None:
+    """Render average context-size vs output-token bar chart."""
+    if df.empty:
+        st.info("Context/output chart unavailable: no requests found.")
+        return
+
+    metrics = []
+    if "context_size_tokens" in df.columns:
+        v = df["context_size_tokens"].dropna().mean()
+        if pd.notna(v):
+            metrics.append({"Metric": "Avg Context Size", "Tokens": float(v)})
+
+    if "output_tokens" in df.columns:
+        v = df["output_tokens"].dropna().mean()
+        if pd.notna(v):
+            metrics.append({"Metric": "Avg Output Tokens", "Tokens": float(v)})
+
+    if not metrics:
+        st.info("Context/output chart unavailable: missing token columns.")
+        return
+
+    plot_df = pd.DataFrame(metrics)
+
+    chart = (
+        alt.Chart(plot_df)
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .encode(
+            x=alt.X("Metric:N", title=""),
+            y=alt.Y("Tokens:Q", title="Average Tokens"),
+            color=alt.Color("Metric:N", legend=None),
+            tooltip=[alt.Tooltip("Metric:N"), alt.Tooltip("Tokens:Q", format=".2f")],
+        )
+        .properties(height=280)
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+def _render_concurrency_chart(ts_df: pd.DataFrame) -> None:
+    """Render active concurrency trend over time."""
+    if ts_df.empty or "concurrent_users" not in ts_df.columns:
+        st.info("Concurrency trend unavailable: missing concurrent user data.")
+        return
+
+    plot_df = ts_df[["timestamp_utc", "concurrent_users"]].dropna().copy()
+    if plot_df.empty:
+        st.info("Concurrency trend unavailable: no valid values.")
+        return
+
+    chart = (
+        alt.Chart(plot_df)
+        .mark_area(opacity=0.35)
+        .encode(
+            x=alt.X("timestamp_utc:T", title="Request Time (UTC)"),
+            y=alt.Y("concurrent_users:Q", title="Concurrent Users", scale=alt.Scale(zero=True)),
+            tooltip=[
+                alt.Tooltip("timestamp_utc:T", title="Timestamp"),
+                alt.Tooltip("concurrent_users:Q", title="Concurrent Users", format=".0f"),
+            ],
+        )
+        .properties(height=260)
+        .interactive()
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+def _render_visual_analytics(df: pd.DataFrame, success_df: pd.DataFrame) -> None:
+    """Render chart-driven analytics sections for better observability and UX."""
+    st.markdown("### 📈 Visual Analytics")
+    st.caption(
+        "These charts help you quickly understand response speed, reliability, throughput, "
+        "and load over time. Latency values are shown in seconds."
+    )
+
+    # Compact interpretation guide shown before charts to improve readability.
+    with st.expander("ℹ️ Quick guide: how to read these metrics", expanded=False):
+        st.caption(
+            "Use this as a quick reference while reading charts and KPI cards. "
+            "In general: lower latency is better, higher success rate is better."
+        )
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**⚡ Speed Metrics**")
+            st.markdown(
+                "- **TTFT**: Time to first token; lower = faster perceived response.\n"
+                "- **Total Latency**: End-to-end time; lower = better.\n"
+                "- **Retrieval Latency**: Time spent finding context documents."
+            )
+
+        with c2:
+            st.markdown("**📈 Quality & Load Metrics**")
+            st.markdown(
+                "- **Tokens/sec**: Generation speed; higher = faster generation.\n"
+                "- **Success Rate**: Requests completed without errors.\n"
+                "- **Concurrent Users**: Active in-flight requests at once."
+            )
+
+        st.info(
+            "Tip: If concurrency spikes and total latency rises together, "
+            "the system is likely under higher load."
+        )
+    st.divider()
+
+    ts_df = _prepare_time_series(df)
+
+    st.markdown("### ⏱️ Latency Trends")
+    st.caption("Track how response times change over time. Lower lines generally indicate faster responses.")
+    _render_latency_trend_chart(ts_df)
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("### 📊 Latency Distribution")
+        st.caption(
+            "Shows how many requests fall into each latency bucket. "
+            "A tighter cluster toward lower latency values is better."
+        )
+        _render_latency_distribution_chart(success_df if not success_df.empty else df)
+    with right:
+        st.markdown("### ✅ Health Composition")
+        st.caption("Breakdown of successful vs failed requests for quick reliability checks.")
+        _render_success_failure_chart(df)
+
+    st.markdown("### 🚀 Throughput Over Time")
+    st.caption("Tokens/sec indicates generation speed; output tokens indicates response length over time.")
+    _render_throughput_trend_chart(ts_df)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("### 🧠 Context vs Output Tokens")
+        st.caption("Compares average retrieved context size against average generated response size.")
+        _render_context_output_bar_chart(success_df if not success_df.empty else df)
+    with c2:
+        st.markdown("### 👥 Concurrency Trend")
+        st.caption("Shows active concurrent requests over time. Spikes can correlate with slower responses.")
+        _render_concurrency_chart(ts_df)
+
+    st.divider()
+
+
 def main() -> None:
     """Render the performance metrics dashboard, including summary metrics, averages, and a table of recent requests."""
     # Apply custom styles
@@ -196,110 +518,10 @@ def main() -> None:
 
     st.divider()
 
-    # Summary metrics: total requests, successful requests, average latency, max concurrency observed
-    with st.container(key="expander-blue-summary-metrics"):
-        with st.expander(cfg.ui_text.page.summary_expander_title, expanded=True):
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric(cfg.ui_text.page.summary_total_requests_label, int(summary.get("total_requests", len(df))))
-            c2.metric(cfg.ui_text.page.summary_successful_requests_label, int(summary.get("successful_requests", len(success_df))))
-            avg_total_latency_ms = (
-                success_df["total_latency_ms"].dropna().mean()
-                if "total_latency_ms" in success_df.columns
-                else None
-            )
-            c3.metric(cfg.ui_text.page.summary_avg_total_latency_label, _format_duration_from_ms(avg_total_latency_ms))
-            c4.metric(
-                cfg.ui_text.page.summary_max_concurrent_label,
-                int(summary.get("max_concurrent_users_observed", df.get("concurrent_users", pd.Series([0])).max())),
-            )
-            st.markdown(cfg.ui_text.page.summary_help_html, unsafe_allow_html=True)
-            StreamlitStyles.render_definition_group([
-                ("📊", "Total Requests", "Count of all requests logged in the metrics file (successful + failed)."),
-                ("✅", "Successful Requests", "Requests with no recorded error; used for most average calculations."),
-                ("⏱️", "Avg Total Latency (avg sec)", "Mean response wait time per successful request, displayed in seconds."),
-                ("👥", "Max Concurrent Users", "Peak number of in-flight requests observed at any point in session history."),
-            ])
-    st.divider()
+    # Render chart-first visual analytics for quicker insights.
+    _render_visual_analytics(df, success_df)
 
-    # Latency averages for successful requests (end-to-end, retrieval, total, TTFT)
-    with st.container(key="expander-blue-latency-averages"):
-        with st.expander(cfg.ui_text.page.latency_expander_title, expanded=True):
-            avg_end_to_end = (
-                success_df["end_to_end_latency_ms"].dropna().mean()
-                if "end_to_end_latency_ms" in success_df.columns
-                else None
-            )
-            avg_retrieval = (
-                success_df["retrieval_latency_ms"].dropna().mean()
-                if "retrieval_latency_ms" in success_df.columns
-                else None
-            )
-            avg_total = (
-                success_df["total_latency_ms"].dropna().mean()
-                if "total_latency_ms" in success_df.columns
-                else None
-            )
-            avg_ttft = (
-                success_df["ttft_ms"].dropna().mean()
-                if "ttft_ms" in success_df.columns
-                else None
-            )
-
-            l1, l2, l3, l4 = st.columns(4)
-            l1.metric(cfg.ui_text.page.latency_end_to_end_label, _format_duration_from_ms(avg_end_to_end))
-            l2.metric(cfg.ui_text.page.latency_retrieval_label, _format_duration_from_ms(avg_retrieval))
-            l3.metric(cfg.ui_text.page.latency_total_label, _format_duration_from_ms(avg_total))
-            l4.metric(cfg.ui_text.page.latency_ttft_label, _format_duration_from_ms(avg_ttft))
-
-            # Definitions for Latency Metrics
-            StreamlitStyles.render_definition_group([
-                ("🚀", "End-to-End Latency (avg sec)", "Average full round-trip time from user submission to final response shown."),
-                ("🔍", "Retrieval Latency (avg sec)", "Average time spent in context retrieval (vector search / RAG lookup)."),
-                ("⚙️", "Total Latency (avg sec)", "Average total processing time for request handling, generation, and post-processing."),
-                ("⚡", "TTFT (avg sec)", "Average Time To First Token — how quickly generation starts after submission."),
-            ])
-    st.divider()
-
-    # Throughput and context averages: tokens/sec, context size, output tokens, concurrent users
-    with st.container(key="expander-blue-throughput-context"):
-        with st.expander(cfg.ui_text.page.throughput_expander_title, expanded=True):
-            avg_tokens_per_sec = (
-                success_df["tokens_per_sec"].dropna().mean()
-                if "tokens_per_sec" in success_df.columns
-                else None
-            )
-            avg_context_size = (
-                success_df["context_size_tokens"].dropna().mean()
-                if "context_size_tokens" in success_df.columns
-                else None
-            )
-            avg_output_tokens = (
-                success_df["output_tokens"].dropna().mean()
-                if "output_tokens" in success_df.columns
-                else None
-            )
-            avg_concurrent_users = (
-                success_df["concurrent_users"].dropna().mean()
-                if "concurrent_users" in success_df.columns
-                else None
-            )
-
-            t1, t2, t3, t4 = st.columns(4)
-            t1.metric(cfg.ui_text.page.throughput_tokens_per_sec_label, f"{avg_tokens_per_sec:.2f}" if pd.notna(avg_tokens_per_sec) else "N/A")
-            t2.metric(cfg.ui_text.page.throughput_context_size_label, f"{avg_context_size:.2f}" if pd.notna(avg_context_size) else "N/A")
-            t3.metric(cfg.ui_text.page.throughput_output_tokens_label, f"{avg_output_tokens:.2f}" if pd.notna(avg_output_tokens) else "N/A")
-            t4.metric(cfg.ui_text.page.throughput_concurrent_users_label, f"{avg_concurrent_users:.2f}" if pd.notna(avg_concurrent_users) else "N/A")
-
-            # Definitions for Throughput & Context Metrics
-            StreamlitStyles.render_definition_group([
-                ("🎯", "Tokens/sec (avg)", "Average generation throughput speed during response creation (higher = faster)."),
-                ("📚", "Context Size (avg tokens)", "Average number of context tokens supplied to the model from retrieved sources."),
-                ("📝", "Output Tokens (avg)", "Average response length per successful request (token/word-count approximation)."),
-                ("👤", "Concurrent Users (avg)", "Average in-flight request count at the time successful responses were processed."),
-            ])
-
-
-    st.divider()
+    # Recent requests table with human-friendly latency formatting and key metrics for observability.
     st.markdown(cfg.ui_text.page.recent_requests_title_html, unsafe_allow_html=True)
     st.markdown(cfg.ui_text.page.recent_requests_subtitle_html, unsafe_allow_html=True)
     table_df = df.copy()
