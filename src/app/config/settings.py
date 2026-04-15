@@ -31,11 +31,11 @@ class AppConfig:
     sagemaker_endpoint:   str   = os.getenv("SAGEMAKER_ENDPOINT","intel-llama3-1-8b-cpu-tgi-endpoint")
 
     # ── Llama HTTP endpoint settings (used when llm_mode=llama) ───────────────
-    llm_base_url:         str   = os.getenv("LLM_BASE_URL", "http://wiphackq0vcsii.cloudloka.com:8000/v1")
+    llm_base_url:         str   = os.getenv("LLM_BASE_URL", "http://wiphackdw23f36.cloudloka.com:8000/v1")
     llm_api_key:          str   = os.getenv("LLM_API_KEY", "")
 
     # ── Shared LLM generation settings ────────────────────────────────────────
-    llm_model:            str   = os.getenv("LLM_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+    llm_model:            str   = os.getenv("LLM_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
     llm_timeout:          int   = int(os.getenv("LLM_TIMEOUT", "120"))  # seconds
     temperature:          float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
     max_tokens:           int   = int(os.getenv("LLM_MAX_TOKENS", "512"))
