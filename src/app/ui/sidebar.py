@@ -68,12 +68,12 @@ def render_sidebar():
         _, logo_col1, logo_col2, _ = st.columns([1, 1, 1, 1], gap="xxsmall")
         with logo_col1:
             if _WIPRO_LOGO_PATH.exists():
-                st.image(str(_WIPRO_LOGO_PATH), width=70)
+                st.image(str(_WIPRO_LOGO_PATH), width=120)
             else:
                 log_warning(logger, f"Wipro logo not found at {_WIPRO_LOGO_PATH}; skipping")
         with logo_col2:
             if _INTEL_LOGO_PATH.exists():
-                st.image(str(_INTEL_LOGO_PATH), width=100)
+                st.image(str(_INTEL_LOGO_PATH), width=70)
             else:
                 log_warning(logger, f"Intel logo not found at {_INTEL_LOGO_PATH}; skipping")
 
