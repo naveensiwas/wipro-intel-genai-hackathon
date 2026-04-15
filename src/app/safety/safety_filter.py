@@ -6,18 +6,69 @@ Also provides an input-side off-domain check.
 """
 
 import re
+import random
 from app.core.logging import get_logger, log_warning
 from app.config.settings import cfg
 from app.rag.retriever import get_top_similarity_score
 
 logger = get_logger(__name__)
 
+# ── Greeting detection (fast-path, runs before domain gate) ───────────────────
+
+# Regex that matches plain greeting inputs — no RAG or LLM call is made for these.
+# Covers:
+#   • Bare greetings:              "hi", "hello!", "hey there"
+#   • Repeated greeting words:     "hi hello", "hello hey", "hey hi there"
+#   • Greeting + social filler:    "hello how are you?", "hi how are you doing"
+#   • Standalone social phrases:   "how are you?", "how's it going", "what's up"
+_GREETING_WORD = r"(?:hi|hello|hey|good\s+morning|good\s+afternoon|good\s+evening|greetings)"
+_SOCIAL_FILLER = r"(?:how\s+are\s+you(?:\s+doing)?|how(?:'s|\s+is)\s+it\s+going|how\s+do\s+you\s+do|what'?s\s+up|howdy)"
+_GREETING_PATTERN = re.compile(
+    r"^\s*(?:"
+        # Branch 1 — starts with one or more greeting words, optionally followed by a social filler
+        + _GREETING_WORD + r"(?:[!.?,\s]+" + _GREETING_WORD + r")*"
+        + r"(?:[!.?,\s]+" + _SOCIAL_FILLER + r")?"
+    + r"|"
+        # Branch 2 — standalone social filler with no greeting word
+        + _SOCIAL_FILLER
+    + r")[!.?,\s]*$",
+    re.IGNORECASE,
+)
+
+# Pool of varied greeting replies — one is chosen at random per interaction
+# to make the assistant feel more natural and less repetitive.
+_GREETING_RESPONSES = [
+    "Hey there! 👋 I'm your Healthcare Symptom Assistant. Feel free to share what's been bothering you — I'm here to help.",
+    "Hello! 😊 Great to see you. Go ahead and describe your symptoms or ask me anything health-related.",
+    "Hi! I'm ready to help with any health questions you have. What's on your mind today?",
+    "Hey! 👋 Whether it's a symptom you're unsure about or a condition you'd like to know more about, I've got you covered.",
+    "Hello there! I'm here to help you with health and symptom information. What would you like to know?",
+    "Hi there! 😊 Tell me what's going on — I can help with symptoms, conditions, or general health questions.",
+    "Hey, good to have you here! I specialise in health and symptom information. What can I help you with today?",
+    "Hello! I'm your health information assistant. Don't hesitate to share your symptoms or ask about a condition.",
+    "I'm doing great, thanks for asking! 😊 I'm here whenever you're ready — feel free to share your symptoms or any health question.",
+    "All good here! 👋 I'm your Healthcare Symptom Assistant, ready to help. What health question can I answer for you today?",
+]
+
+
+def is_simple_greeting(text: str) -> bool:
+    """Return True if *text* is a plain greeting with no health content."""
+    if not text:
+        return False
+    return bool(_GREETING_PATTERN.match(text.strip()))
+
+
+def get_greeting_response() -> str:
+    """Return a randomly chosen greeting reply (no retrieval / no LLM call needed)."""
+    return random.choice(_GREETING_RESPONSES)
+
+
 # ── Off-domain input filter ────────────────────────────────────────────────────
 
-# Keywords that indicate a health-related query
+# Keywords that indicate a health-related query.
+# NOTE: Greeting detection is handled by is_simple_greeting() / _GREETING_PATTERN above,
+# which runs before the domain gate is ever reached, so greeting words are intentionally excluded here.
 _HEALTH_KEYWORDS = [
-    # Greetings and general queries
-    "hi", "hello", "hey", "greetings", "greeting",
 
     # Health symptoms and conditions
     "symptom", "symptoms", "pain", "fever", "cough", "headache", "doctor",
