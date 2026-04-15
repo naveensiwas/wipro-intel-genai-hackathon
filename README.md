@@ -12,20 +12,28 @@ A safe, trustworthy, and informative conversational AI system that helps users u
 
 | Feature | Detail |
 |---------|--------|
-| **Conversational Chat** | Multi-turn chat UI with full persistent history via Streamlit session state |
-| **RAG-Powered Responses** | All answers grounded in a curated knowledge base of symptoms, conditions, and preventive tips |
-| **Semantic Search** | FAISS vector store + local `all-MiniLM-L6-v2` embeddings; CPU-only, no GPU required |
-| **Smart Symptom Guide** | Sidebar form to build structured queries from symptom, duration, severity, and additional symptoms |
-| **Dual Safety Layers** | Hybrid keyword + semantic input domain gate; output regex sanitization + mandatory disclaimer |
-| **Flexible LLM Backend** | AWS SageMaker (TGI via boto3 + SSO) or Llama HTTP (OpenAI-compatible `/v1/chat/completions`) |
-| **Performance Monitoring** | Per-request TTFT, total/retrieval latency, tokens/sec, concurrent users — stored as JSON |
-| **Metrics Dashboard** | In-app dashboard with health status indicator, latency/throughput panels, IST-formatted request table, CSV export, and reset |
-| **Transparent Source Attribution** | Retrieved context documents shown in collapsible expanders next to each response |
-| **Production-Ready Architecture** | Modular package structure, centralized config dataclass, ANSI-colored structured logging, thread-safe metrics |
+| **Conversational Chat** | Multi-turn chat UI with persistent session history; last 4 turns injected into each query via `_build_history_aware_query()` so follow-up questions (e.g. *"what about the treatment?"*) resolve correctly without re-stating context |
+| **RAG-Powered Responses** | All answers grounded in a curated knowledge base of symptoms, conditions, and preventive tips; retrieves top-K chunks via FAISS similarity search and feeds them into a `RetrievalQA` chain |
+| **Semantic Search** | FAISS vector store + local `all-MiniLM-L6-v2` embeddings (384-dim, L2-normalized); CPU-only, no GPU required; index built once on first run and persisted to disk for fast subsequent starts |
+| **Smart Symptom Guide** | Sidebar form to build structured queries from symptom (dynamic dropdown from knowledge base), duration, severity (1–10 slider), and additional symptoms; composes a natural-language query and auto-submits to chat |
+| **Greeting Handling** | Regex fast-path (`is_simple_greeting`) intercepts bare greetings and social phrases before any safety gate, retrieval, or LLM call; replies with a randomly chosen warm response from a 10-reply pool — no latency cost |
+| **Off-Domain Query Handling** | Three-mode domain gate (`keyword` / `semantic` / `hybrid`) blocks non-health queries before the RAG pipeline; semantic mode uses FAISS similarity scoring against the health knowledge base with configurable threshold and optional keyword fallback; blocked queries receive a clear, example-rich redirection message |
+| **Safety-First Grounded Prompt** | 24-rule system prompt enforces grounding in retrieved context only, prohibits diagnosis/prescription, mandates cautious phrasing (*"may be associated with"*), requires urgent-care callouts for severe symptoms, and bars all references to the RAG process or conversation history from responses |
+| **Response Softening** | Post-generation regex sanitizer replaces hard diagnostic phrases (e.g. *"You have X"* → *"This may be associated with X"*) with cautious language; every response is appended with a mandatory ⚕️ medical disclaimer regardless of content |
+| **Flexible LLM Backend** | AWS SageMaker (TGI via boto3 + SSO) or Llama HTTP (OpenAI-compatible `/v1/chat/completions`); switched via `LLM_MODE` env var; both wrapped in a LangChain-compatible `EndpointLLM` adapter |
+| **Startup Resource Caching** | LLM client, FAISS vector store, and RAG chain are each loaded once via `@st.cache_resource` and reused for the process lifetime — eliminating per-request initialization overhead |
+| **Concurrent Request Tracking** | `st.session_state.active_requests` counter incremented/decremented per request; value captured at submission time and stored in metrics as `concurrent_users` for load correlation analysis |
+| **Performance Monitoring** | Per-request TTFT, total/retrieval/end-to-end latency (ms), tokens/sec, context size, output tokens, concurrent users, and error — persisted to `performance_metrics.json` after every request |
+| **Metrics Dashboard** | Chart-first in-app dashboard with 6 interactive Altair visualizations (latency trends, distribution, health composition donut, throughput, context/output tokens, concurrency); IST-formatted request table with SR No., CSV export, and reset |
+| **Transparent Source Attribution** | Retrieved context documents shown in collapsible expanders next to each response; toggled via `SHOW_RETRIEVED_SOURCES` env var; each source labelled with symptom/condition/category metadata |
+| **CSS Design System** | Centralized CSS variable-based theme in `styles.py` — covers metric cards, expanders, sidebar width, active/hover navigation states, blue/red button variants, and page titles; injected once via `StreamlitStyles.apply_all_styles()` |
+| **Production-Ready Architecture** | Modular package structure, centralized `AppConfig` dataclass, ANSI-colored structured logging with per-level emojis, thread-safe metrics writes, `app_launcher.py` root entry point, and `scripts/sanity/` startup verification scripts |
 
 ---
 
 ## ⚡ Quick Start
+
+Request routing in the app follows: greeting fast-path, health-domain gate, and retrieval-grounded response generation for in-domain health queries.
 
 ```bash
 # 1. Clone
@@ -55,6 +63,15 @@ python app_launcher.py
 
 ---
 
+## 🖼️ Screenshots
+
+| Chat Interface | Metrics Dashboard |
+|:--------------:|:-----------------:|
+| ![Chat Interface](docs/screenshots/chat_interface.png) | ![Metrics Dashboard](docs/screenshots/metrics_dashboard.png) |
+| Multi-turn conversational chat with source attribution | Chart-first performance dashboard with 6 interactive visualizations |
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -70,7 +87,8 @@ Wipro_Intel_Hackathon_LLM_EP/
 │   ├── SETUP.md                 # Installation & run instructions
 │   ├── CONFIGURATION.md         # All environment variables
 │   ├── MONITORING.md            # Metrics schema & dashboard
-│   └── DEVELOPMENT.md           # Customization, troubleshooting & FAQ
+│   ├── DEVELOPMENT.md           # Customization, troubleshooting & FAQ
+│   └── screenshots/             # UI screenshots (chat interface & metrics dashboard)
 │
 ├── src/
 │   └── app/
