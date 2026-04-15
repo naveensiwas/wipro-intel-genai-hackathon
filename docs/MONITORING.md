@@ -73,16 +73,85 @@ Updated after every request in the `"summary"` block:
 
 ## Metrics Dashboard Panels
 
-Access the dashboard via **📊 Model Latency & Throughput Metrics** in the sidebar:
+Access the dashboard via **📊 Model Latency & Throughput Metrics** in the sidebar.
 
-| Panel | Metrics Shown |
-|-------|---------------|
-| **Health Status** | 🟢 Healthy (≥80% success) / 🟡 Degraded (≥60%) / 🔴 Unhealthy (<60%) |
-| **Summary** | Total requests, successful, avg total latency (sec), max concurrent users |
-| **Latency Averages** | End-to-end, retrieval, total, TTFT — all displayed in seconds |
-| **Throughput & Context** | Tokens/sec, context size (tokens), output tokens, avg concurrent users |
-| **Recent Requests Table** | Last 50 requests; UTC→IST timestamps; styled HTML table with SR No. |
-| **Controls** | CSV download (`performance_metrics_requests.csv`) + Reset with confirmation |
+The dashboard follows a **chart-first layout**: visual analytics are rendered above the requests table so key trends are immediately visible.
+
+### Top-Level Summary
+
+| Element | Description |
+|---------|-------------|
+| **Health Status Indicator** | 🟢 Healthy (≥80% success rate) / 🟡 Degraded (≥60%) / 🔴 Unhealthy (<60%) |
+| **Success Rate** | Percentage of requests completed without error |
+| **Total Requests** | Count of all recorded requests |
+| **Successful** | Count of error-free requests |
+
+### 🎛️ Dashboard Controls
+
+| Control | Description |
+|---------|-------------|
+| **Download CSV** | Exports all recorded requests to `performance_metrics_requests.csv` (raw ms values) |
+| **Reset Metrics** | Popover with checkbox confirmation; overwrites metrics file with an empty default payload |
+
+---
+
+## 📈 Visual Analytics
+
+Six Altair-based charts grouped under the **Visual Analytics** section. A collapsible **Quick guide** expander is shown above the charts explaining each metric category.
+
+### Quick Guide (collapsible expander)
+
+| Category | Metrics Covered |
+|----------|----------------|
+| **⚡ Speed Metrics** | TTFT, Total Latency, Retrieval Latency — lower is better |
+| **📈 Quality & Load** | Tokens/sec (higher is better), Success Rate, Concurrent Users |
+
+> **Tip shown in guide:** If concurrency spikes and total latency rises together, the system is likely under higher load.
+
+### Chart Reference
+
+| Chart | Type | Description |
+|-------|------|-------------|
+| **⏱️ Latency Trends** | Multi-series line (interactive) | Plots TTFT, Retrieval, and Total latency in seconds over request time. Each series is color-coded; points are shown for individual requests. |
+| **📊 Latency Distribution** | Histogram (bar) | Buckets total latency (sec) across all successful requests. Uses `maxbins=24`; shows how many requests fell into each latency range. |
+| **✅ Health Composition** | Donut chart | Proportion of Successful vs Failed requests. Green = successful (#16a34a), Red = failed (#dc2626). |
+| **🚀 Throughput Over Time** | Multi-series line (interactive) | Plots Tokens/sec and Output Tokens per request over time. Helps identify generation speed trends. |
+| **🧠 Context vs Output Tokens** | Bar chart | Average retrieved context size vs average generated response size in tokens. |
+| **👥 Concurrency Trend** | Area chart (interactive) | Active concurrent requests over time. Spikes can correlate with higher latency values. |
+
+> All latency values in charts are displayed in **seconds** (converted from stored milliseconds). Time axes use UTC timestamps.
+
+![Metrics Dashboard](screenshots/metrics_dashboard.png)
+
+---
+
+## 📋 Recent Requests Table
+
+Displayed below the Visual Analytics section.
+
+| Property | Detail |
+|----------|--------|
+| **Rows shown** | Last 50 requests, sorted descending by timestamp |
+| **Timestamps** | UTC → IST (`Asia/Kolkata`), formatted as `Ddd, DD Mon YYYY HH:MM AM/PM` |
+| **SR No.** | 1-based sequential row number column |
+| **Latency columns** | TTFT, Retrieval Latency, Total Latency, End-to-End Latency — all formatted as `X.XX sec` |
+| **Styling** | Custom HTML table with blue header (`#1e3a8a` on `#eff6ff`), alternating row stripes, horizontal scroll for wide tables |
+
+**Columns displayed:**
+
+| Column | Source Field | Notes |
+|--------|-------------|-------|
+| SR No. | — | Row number (1-based) |
+| Timestamp (IST) | `timestamp_utc` | Converted UTC → IST |
+| User Query | `query_preview` | First 120 chars of query |
+| TTFT (avg sec) | `ttft_ms` | Formatted in seconds |
+| Retrieval Latency (avg sec) | `retrieval_latency_ms` | Formatted in seconds |
+| Total Latency (avg sec) | `total_latency_ms` | Formatted in seconds |
+| End-to-End Latency (avg sec) | `end_to_end_latency_ms` | Formatted in seconds |
+| Tokens/sec | `tokens_per_sec` | Raw float |
+| Context Size (tokens) | `context_size_tokens` | Approx. word count |
+| Concurrent Users | `concurrent_users` | Active requests at submission |
+| Error | `error` | Exception message or blank |
 
 ---
 
@@ -105,3 +174,4 @@ This overwrites the metrics file with an empty default payload.
 ---
 
 *[← Back to README](../README.md)*
+
