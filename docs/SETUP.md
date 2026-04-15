@@ -197,14 +197,41 @@ streamlit run scripts/sanity/sanity_app.py
 
 ### Example Queries
 
-| Type | Example |
-|------|---------|
-| Simple symptom | `"I have a persistent cough for 3 days"` |
-| Condition lookup | `"What are common symptoms of diabetes?"` |
-| Multi-symptom | `"I'm experiencing chest pain and shortness of breath"` |
-| Preventive | `"How can I prevent flu?"` |
-| Greeting (accepted) | `"Hi"` / `"Hello"` |
-| Off-domain (rejected) | `"Tell me about the weather"` / `"Write me a Python script"` |
+| Type | Example                                                 |
+|------|---------------------------------------------------------|
+| Simple symptom | `I have a persistent cough for 3 days`                  |
+| Condition lookup | `What are common symptoms of dizziness?`                |
+| Multi-symptom | `I'm experiencing chest pain and shortness of breath`   |
+| Preventive | `How can I prevent flu?`                                |
+| Greeting (accepted) | `Hi` / `Hello`                                          |
+| Off-domain (rejected) | `What is IPL match score ?` / `Write me a Python script` |
+
+### Feature-Specific Conversation Tests
+
+Use these prompts to validate both interaction modes in the app.
+
+#### Single-turn question (standalone)
+
+Prompt:
+
+`What are common symptoms of dengue, and when should someone seek urgent medical care?`
+
+Expected behavior:
+- The response should be complete without requiring prior chat context.
+- The answer should mention practical warning signs and escalation guidance.
+- Retrieved source snippets should appear when source display is enabled.
+
+#### Context-aware follow-up (multi-turn)
+
+Send these prompts in order:
+
+1. `I have had fever, body ache, and headache for 2 days. What could this indicate?`
+2. `What tests should I do for this, and should I isolate at home?`
+
+Expected behavior:
+- The second prompt should resolve `this` using the first prompt context.
+- The response should provide relevant tests and home-care/isolation guidance.
+- The answer should remain in healthcare scope and grounded in retrieved context.
 
 ### Using the Smart Symptom Guide
 
