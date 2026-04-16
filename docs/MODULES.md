@@ -25,7 +25,11 @@
 
 > ✅ **Note:** Chat history is persisted in session state, and recent turns are incorporated in `main.py` via `_build_recent_history()` and `_build_history_aware_query()` to support follow-up question resolution.
 
-![Chat Interface](screenshots/chat_interface.png)
+| | |
+|:---:|:---:|
+| ![Chat Interface 1](screenshots/chat_interface_1.png) | ![Chat Interface 2](screenshots/chat_interface_2.png) |
+|                                            Chat-screen with welcome message                                             |            Chat screen with user question response            |
+| Smart Symptom Guide in sidebar with structured query form | Chat screen showing retrieved sources (expanders) |
 
 ### `sidebar.py` — Navigation & Smart Symptom Guide
 - Renders Wipro and Intel logos side-by-side using `st.columns`
@@ -77,7 +81,16 @@ Each chart function handles missing/empty data gracefully with `st.info()` fallb
 - CSV download button (exports raw ms values; produced by `_to_csv_bytes()`)
 - Reset popover (requires checkbox confirmation to prevent accidental reset; calls `reset_metrics()`)
 
-![Metrics Dashboard](screenshots/metrics_dashboard.png)
+
+|                                                                                |                                                                  |
+|:------------------------------------------------------------------------------:|:----------------------------------------------------------------:|
+|        ![Metrics Dashboard 1](docs/screenshots/metrics_dashboard_1.png)        | ![Metrics Dashboard 2](docs/screenshots/metrics_dashboard_2.png) |
+| Health status and controls to download and reset the recent user conversations |       Latency trends, distribution and health composition        |
+
+|                                                                  |                                                                  |
+|:----------------------------------------------------------------:|:----------------------------------------------------------------:|
+| ![Metrics Dashboard 3](docs/screenshots/metrics_dashboard_3.png) | ![Metrics Dashboard 4](docs/screenshots/metrics_dashboard_4.png) |
+| Throughput, context vs output token charts and concurrency trend |                 User recent conversation history                 |
 
 ### `styles.py` — Centralized CSS
 - `StreamlitStyles.apply_all_styles()`: Injects CSS for page titles, taglines, sidebar branding, expander styling, button colors, footer
