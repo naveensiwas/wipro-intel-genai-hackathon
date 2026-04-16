@@ -65,10 +65,32 @@ python app_launcher.py
 
 ## 🖼️ Screenshots
 
-| Chat Interface | Metrics Dashboard |
-|:--------------:|:-----------------:|
-| ![Chat Interface](docs/screenshots/chat_interface.png) | ![Metrics Dashboard](docs/screenshots/metrics_dashboard.png) |
-| Multi-turn conversational chat with source attribution | Chart-first performance dashboard with 6 interactive visualizations |
+### 🏗️ Architecture Diagram
+![Architecture Diagram](docs/screenshots/Architecture.png)
+
+---
+
+### 💬 Chat Interface
+
+|                                                                                                                         |                                                               |
+|:-----------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------:|
+|                               ![Chat Interface 1](docs/screenshots/chat_interface_1.png)                                |   ![Chat Interface 2](docs/screenshots/chat_interface_2.png)  |
+|                                            Chat-screen with welcome message                                             |            Chat screen with user question response            |
+| Smart Symptom Guide in sidebar with structured query form | Chat screen showing retrieved sources (expanders) |
+
+---
+
+### 📊 Metrics Dashboard
+
+|                                                                                |                                                                  |
+|:------------------------------------------------------------------------------:|:----------------------------------------------------------------:|
+|        ![Metrics Dashboard 1](docs/screenshots/metrics_dashboard_1.png)        | ![Metrics Dashboard 2](docs/screenshots/metrics_dashboard_2.png) |
+| Health status and controls to download and reset the recent user conversations |       Latency trends, distribution and health composition        |
+
+|                                                                  |                                                                  |
+|:----------------------------------------------------------------:|:----------------------------------------------------------------:|
+| ![Metrics Dashboard 3](docs/screenshots/metrics_dashboard_3.png) | ![Metrics Dashboard 4](docs/screenshots/metrics_dashboard_4.png) |
+| Throughput, context vs output token charts and concurrency trend |                 User recent conversation history                 |
 
 ---
 
