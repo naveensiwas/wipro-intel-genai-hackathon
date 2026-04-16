@@ -124,12 +124,12 @@ Six Altair-based charts grouped under the **Visual Analytics** section. A collap
 
 |                                                                                |                                                                  |
 |:------------------------------------------------------------------------------:|:----------------------------------------------------------------:|
-|        ![Metrics Dashboard 1](docs/screenshots/metrics_dashboard_1.png)        | ![Metrics Dashboard 2](docs/screenshots/metrics_dashboard_2.png) |
+|        ![Metrics Dashboard 1](screenshots/metrics_dashboard_1.png)        | ![Metrics Dashboard 2](screenshots/metrics_dashboard_2.png) |
 | Health status and controls to download and reset the recent user conversations |       Latency trends, distribution and health composition        |
 
 |                                                                  |                                                                  |
 |:----------------------------------------------------------------:|:----------------------------------------------------------------:|
-| ![Metrics Dashboard 3](docs/screenshots/metrics_dashboard_3.png) | ![Metrics Dashboard 4](docs/screenshots/metrics_dashboard_4.png) |
+| ![Metrics Dashboard 3](screenshots/metrics_dashboard_3.png) | ![Metrics Dashboard 4](screenshots/metrics_dashboard_4.png) |
 | Throughput, context vs output token charts and concurrency trend |                 User recent conversation history                 |
 
 ---
