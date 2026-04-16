@@ -121,7 +121,16 @@ Six Altair-based charts grouped under the **Visual Analytics** section. A collap
 
 > All latency values in charts are displayed in **seconds** (converted from stored milliseconds). Time axes use UTC timestamps.
 
-![Metrics Dashboard](screenshots/metrics_dashboard.png)
+
+|                                                                                |                                                                  |
+|:------------------------------------------------------------------------------:|:----------------------------------------------------------------:|
+|        ![Metrics Dashboard 1](docs/screenshots/metrics_dashboard_1.png)        | ![Metrics Dashboard 2](docs/screenshots/metrics_dashboard_2.png) |
+| Health status and controls to download and reset the recent user conversations |       Latency trends, distribution and health composition        |
+
+|                                                                  |                                                                  |
+|:----------------------------------------------------------------:|:----------------------------------------------------------------:|
+| ![Metrics Dashboard 3](docs/screenshots/metrics_dashboard_3.png) | ![Metrics Dashboard 4](docs/screenshots/metrics_dashboard_4.png) |
+| Throughput, context vs output token charts and concurrency trend |                 User recent conversation history                 |
 
 ---
 
@@ -174,4 +183,3 @@ This overwrites the metrics file with an empty default payload.
 ---
 
 *[← Back to README](../README.md)*
-
