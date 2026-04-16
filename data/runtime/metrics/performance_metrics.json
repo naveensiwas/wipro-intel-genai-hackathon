@@ -1,0 +1,63 @@
+{
+  "requests": [
+    {
+      "timestamp_utc": "2026-04-15T19:34:22Z",
+      "query_preview": "I have a persistent cough for 3 days",
+      "ttft_ms": 20787.47,
+      "total_latency_ms": 20802.87,
+      "tokens_per_sec": 8.93,
+      "retrieval_latency_ms": 10.58,
+      "end_to_end_latency_ms": 20802.87,
+      "context_size_tokens": 176,
+      "output_tokens": 185,
+      "concurrent_users": 1,
+      "error": null
+    },
+    {
+      "timestamp_utc": "2026-04-15T19:35:04Z",
+      "query_preview": "I'm experiencing chest pain and shortness of breath",
+      "ttft_ms": 23261.47,
+      "total_latency_ms": 23270.0,
+      "tokens_per_sec": 9.17,
+      "retrieval_latency_ms": 12.98,
+      "end_to_end_latency_ms": 23270.0,
+      "context_size_tokens": 158,
+      "output_tokens": 213,
+      "concurrent_users": 1,
+      "error": null
+    },
+    {
+      "timestamp_utc": "2026-04-15T19:35:36Z",
+      "query_preview": "What is IPL match score ",
+      "ttft_ms": null,
+      "total_latency_ms": 15.8,
+      "tokens_per_sec": null,
+      "retrieval_latency_ms": null,
+      "end_to_end_latency_ms": 15.8,
+      "context_size_tokens": 0,
+      "output_tokens": 59,
+      "concurrent_users": 1,
+      "error": null
+    },
+    {
+      "timestamp_utc": "2026-04-15T19:36:51Z",
+      "query_preview": "My primary symptom is Dizziness, for 1\u20134 weeks, with a severity of 10/10. What could this be and what should I do?",
+      "ttft_ms": 23218.44,
+      "total_latency_ms": 23226.42,
+      "tokens_per_sec": 8.62,
+      "retrieval_latency_ms": 11.95,
+      "end_to_end_latency_ms": 23226.42,
+      "context_size_tokens": 147,
+      "output_tokens": 200,
+      "concurrent_users": 1,
+      "error": null
+    }
+  ],
+  "summary": {
+    "total_requests": 5,
+    "successful_requests": 5,
+    "avg_total_latency_ms": 13463.12,
+    "max_concurrent_users_observed": 1,
+    "last_updated_utc": "2026-04-16T02:54:41Z"
+  }
+}
