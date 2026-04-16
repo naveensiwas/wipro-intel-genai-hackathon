@@ -49,6 +49,8 @@
                   └──────────────┘ └────────────────────────┘
 ```
 
+![Architecture Diagram](screenshots/Architecture.png)
+
 ---
 
 ## Request Data Flow
